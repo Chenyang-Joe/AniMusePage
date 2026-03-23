@@ -11,3 +11,4 @@ data/viz/pred_compressed/
 # Generated GT model (33MB, regenerated via process-gt.mjs)
 public/models/gt.glb
 public/models/gt_floor.json
+data/
