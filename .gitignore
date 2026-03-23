@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.claude/
+
+# Large source GLB files (not needed in git)
+data/viz/gt/
+data/viz/pred/
+data/viz/bones/
+data/viz/pred_compressed/
+
+# Generated GT model (33MB, regenerated via process-gt.mjs)
+public/models/gt.glb
+public/models/gt_floor.json

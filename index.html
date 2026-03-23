@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Night at the Museum</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; overflow: hidden; font-family: 'Georgia', serif; }
+
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    canvas { display: block; }
+
+    /* Magic flash overlay */
+    #flash {
+      position: fixed;
+      inset: 0;
+      background: white;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 100;
+      transition: opacity 0.05s ease-in;
+    }
+
+    /* UI Controls */
+    #controls {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      z-index: 10;
+    }
+
+    #btn-life {
+      padding: 14px 36px;
+      background: transparent;
+      border: 1px solid rgba(212, 175, 55, 0.8);
+      color: #d4af37;
+      font-family: 'Georgia', serif;
+      font-size: 15px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    #btn-life:hover {
+      background: rgba(212, 175, 55, 0.1);
+      border-color: #d4af37;
+      box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+    }
+    #btn-life:disabled {
+      opacity: 0.3;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    #toggle-view {
+      display: none;
+      background: rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 24px;
+      overflow: hidden;
+    }
+    #toggle-view button {
+      padding: 8px 24px;
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.5);
+      font-family: 'Georgia', serif;
+      font-size: 13px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    #toggle-view button.active {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+    }
+
+    /* Loading indicator */
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0a0806;
+      z-index: 200;
+      color: rgba(212, 175, 55, 0.7);
+      font-family: 'Georgia', serif;
+      letter-spacing: 3px;
+      font-size: 13px;
+      text-transform: uppercase;
+      gap: 20px;
+      transition: opacity 0.8s ease;
+    }
+    #loading-bar-wrap {
+      width: 200px;
+      height: 1px;
+      background: rgba(212,175,55,0.2);
+    }
+    #loading-bar {
+      height: 1px;
+      width: 0%;
+      background: rgba(212, 175, 55, 0.8);
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <span>Preparing the exhibit</span>
+    <div id="loading-bar-wrap"><div id="loading-bar"></div></div>
+  </div>
+
+  <div id="flash"></div>
+  <div id="canvas-container"></div>
+
+  <div id="controls">
+    <button id="btn-life" disabled>✦ Bring Static Exhibition to Life</button>
+    <div id="toggle-view">
+      <button id="btn-mesh" class="active">Mesh</button>
+      <button id="btn-bones">Skeleton</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
