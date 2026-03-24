@@ -1,0 +1,100 @@
+[
+  {
+    "index": 0,
+    "animal": "Arctic Wolf Female",
+    "action": "swimturnr000",
+    "predFile": "0/pred.glb",
+    "bonesFile": "0/bones.glb"
+  },
+  {
+    "index": 1,
+    "animal": "Bactrian Camel Juvenile",
+    "action": "walktorun",
+    "predFile": "1/pred.glb",
+    "bonesFile": "1/bones.glb"
+  },
+  {
+    "index": 2,
+    "animal": "Bairds Tapir Female",
+    "action": "fighttaunt",
+    "predFile": "2/pred.glb",
+    "bonesFile": "2/bones.glb"
+  },
+  {
+    "index": 3,
+    "animal": "Blackbuck Female",
+    "action": "shake",
+    "predFile": "3/pred.glb",
+    "bonesFile": "3/bones.glb"
+  },
+  {
+    "index": 4,
+    "animal": "Bush Dog Female",
+    "action": "runbaseonspot",
+    "predFile": "4/pred.glb",
+    "bonesFile": "4/bones.glb"
+  },
+  {
+    "index": 5,
+    "animal": "Gharial Juvenile",
+    "action": "standtowalk",
+    "predFile": "5/pred.glb",
+    "bonesFile": "5/bones.glb"
+  },
+  {
+    "index": 6,
+    "animal": "Gray Wolf Female",
+    "action": "runbase",
+    "predFile": "6/pred.glb",
+    "bonesFile": "6/bones.glb"
+  },
+  {
+    "index": 7,
+    "animal": "Hill Radnor Sheep Juvenile",
+    "action": "drinktostand",
+    "predFile": "7/pred.glb",
+    "bonesFile": "7/bones.glb"
+  },
+  {
+    "index": 8,
+    "animal": "Japanese Raccoon Dog Male",
+    "action": "deepswim03",
+    "predFile": "8/pred.glb",
+    "bonesFile": "8/bones.glb"
+  },
+  {
+    "index": 9,
+    "animal": "Little Penguin Juvenile",
+    "action": "interactadultb",
+    "predFile": "9/pred.glb",
+    "bonesFile": "9/bones.glb"
+  },
+  {
+    "index": 10,
+    "animal": "Quokka Female",
+    "action": "eatloop01",
+    "predFile": "10/pred.glb",
+    "bonesFile": "10/bones.glb"
+  },
+  {
+    "index": 11,
+    "animal": "Red Ruffed Lemur Female",
+    "action": "climbjumpout",
+    "predFile": "11/pred.glb",
+    "bonesFile": "11/bones.glb"
+  },
+  {
+    "index": 12,
+    "animal": "Rednecked Wallaby Juvenile",
+    "action": "standtowalk",
+    "predFile": "12/pred.glb",
+    "bonesFile": "12/bones.glb"
+  },
+  {
+    "index": 13,
+    "animal": "Standard Donkey Juvenile",
+    "action": "fighttaunt",
+    "predFile": "13/pred.glb",
+    "bonesFile": "13/bones.glb"
+  }
+]
