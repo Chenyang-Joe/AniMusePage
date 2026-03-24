@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
+import { Debug } from '../utils/debug.js'
 
 const BASE = import.meta.env.BASE_URL
 
@@ -177,4 +178,73 @@ function countMorphTargets(model) {
     if (node.isMesh && node.morphTargetInfluences) n += node.morphTargetInfluences.length
   })
   return n
+}
+
+// ── Per-exhibit loader ─────────────────────────────────────────────────────
+// Loads pred+bones for one exhibit index into slotGroup.
+// slotGroup is the THREE.Group for that carousel slot (pedestal already there).
+const _loader = new GLTFLoader()
+let   _decoderReady = false
+
+async function ensureDecoder() {
+  if (_decoderReady) return
+  await MeshoptDecoder.ready
+  _loader.setMeshoptDecoder(MeshoptDecoder)
+  _decoderReady = true
+}
+
+export async function loadExhibit(index, slotGroup, onProgress) {
+  await ensureDecoder()
+
+  const dir = `${BASE}models/exhibits/${index}`
+
+  const [predGltf, bonesGltf] = await Promise.all([
+    loadOne(_loader, `${dir}/pred.glb`,  p => onProgress?.('pred',  p)),
+    loadOne(_loader, `${dir}/bones.glb`, p => onProgress?.('bones', p)),
+  ])
+
+  // ── Pred mesh ────────────────────────────────────────────────────────
+  const predModel = predGltf.scene
+  applyMeshMaterial(predModel)
+  const { scale: sharedScale, offset: sharedOffset,
+          predMeshNode, baseLocalMinY, floorScaleY, initialOffsetY } = computePedestalTransform(predModel)
+  applyPedestalTransform(predModel, sharedScale, sharedOffset)
+  predModel.visible = true
+  slotGroup.add(predModel)
+
+  const predMixer = new THREE.AnimationMixer(predModel)
+  const predAction = predGltf.animations.length
+    ? predMixer.clipAction(predGltf.animations[0])
+    : null
+  if (predAction) {
+    predAction.setLoop(THREE.LoopRepeat)
+    predAction.clampWhenFinished = false
+  }
+
+  // ── Bones ────────────────────────────────────────────────────────────
+  const bonesModel = bonesGltf.scene
+  applyBonesMaterial(bonesModel)
+  applyPedestalTransform(bonesModel, sharedScale, sharedOffset)
+  bonesModel.visible = false
+  slotGroup.add(bonesModel)
+
+  const bonesMixer = new THREE.AnimationMixer(bonesModel)
+  const bonesAction = bonesGltf.animations.length
+    ? bonesMixer.clipAction(bonesGltf.animations[0])
+    : null
+  if (bonesAction) {
+    bonesAction.setLoop(THREE.LoopRepeat)
+    bonesAction.clampWhenFinished = false
+  }
+
+  Debug.log('loader',
+    `exhibit ${index} loaded | morphTargets=${countMorphTargets(predModel)}` +
+    ` baseLocalMinY=${baseLocalMinY.toFixed(4)} floorScaleY=${floorScaleY.toFixed(4)} initialOffsetY=${initialOffsetY.toFixed(4)}`)
+
+  return {
+    predModel, predMixer, predAction,
+    bonesModel, bonesMixer, bonesAction,
+    predMeshNode, baseLocalMinY, floorScaleY, initialOffsetY,
+    sharedScale,
+  }
 }
