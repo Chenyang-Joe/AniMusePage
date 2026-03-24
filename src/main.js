@@ -35,9 +35,7 @@ const orbit = new OrbitControls(camera, renderer.domElement)
 orbit.target.set(0, 0, 12)
 orbit.enableDamping = true
 orbit.dampingFactor = 0.05
-orbit.minDistance = 2
-orbit.maxDistance = 12
-orbit.maxPolarAngle = Math.PI / 2
+orbit.enablePan = false
 orbit.enabled = false
 orbit.update()
 
@@ -116,7 +114,7 @@ fetch(`${BASE}models/exhibits/exhibits.yaml`)
       requestAnimationFrame(animate)
       const delta = clock.getDelta()
       pageManager.update(delta)
-      carouselCamera.update(delta)          // advance camera fly (calls orbit.update on completion)
+      carouselCamera.update(delta)
       if (!carouselCamera.flying && pageManager.state === 'demo') orbit.update()
       updateTween(delta)
       manager.update(delta)

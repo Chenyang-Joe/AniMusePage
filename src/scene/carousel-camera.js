@@ -51,7 +51,7 @@ export class CarouselCamera {
     this._to.target.copy(view.target)
     this._t      = 0
     this._flying = true
-    this._orbit.enabled = false   // disable user input during flight
+    this._orbit.enabled = false
     this._onDone = onComplete ?? null
     Debug.log('camera',
       `flyTo ${index} |` +

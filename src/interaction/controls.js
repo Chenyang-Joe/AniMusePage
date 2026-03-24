@@ -71,6 +71,11 @@ export function setupControls({ lights, bloom, manager, carouselCamera, manifest
     btnBones.classList.toggle('active',  ex.showingBones)
   }
 
+  // ── Reset camera to default viewpoint for current slot ────────────────
+  function resetCamera() {
+    carouselCamera.flyTo(manager.activeIndex, null)
+  }
+
   // ── Reset exhibit to static ───────────────────────────────────────────
   function resetToStatic(ex) {
     if (!ex || !ex.alive) return
@@ -131,7 +136,7 @@ export function setupControls({ lights, bloom, manager, carouselCamera, manifest
     animateLightIntensity(lights.ambientLight, ALIVE_LIGHTS.ambientLight, 1200)
     lights.ceilLights?.forEach(l => animateLightIntensity(l, ALIVE_LIGHTS.ceil, 1200))
 
-    setTimeout(() => updateUI(), 800)
+    updateUI()
   })
 
   // ── Mesh / Bones toggle ───────────────────────────────────────────────
@@ -235,7 +240,7 @@ export function setupControls({ lights, bloom, manager, carouselCamera, manifest
     }
   }
 
-  return { updateUI, resetActiveToStatic }
+  return { updateUI, resetActiveToStatic, resetCamera }
 }
 
 function animateLightIntensity(light, target, durationMs) {
