@@ -75,13 +75,19 @@ function loadOne(loader, url, onProgress) {
   })
 }
 
-// Step 1: compute scale + offset by iterating base-pose vertices in world space.
+// Step 1: compute scale + offset by iterating base-pose vertices.
 // Box3.setFromObject is NOT used here: Three.js expands the bounding box by ALL morph targets
 // regardless of current weights, giving the worst-case inflated box — not the base pose bounds.
+//
+// Vertices are transformed into the PARENT'S LOCAL SPACE (slotGroup local space).
+// This is critical: each slotGroup has rotation.y = -angle, so world space ≠ local space.
+// The computed offset is applied as model.position (also in parent local space), so they must match.
 function computePedestalTransform(model) {
   model.position.set(0, 0, 0)
+  model.rotation.set(0, 0, 0)
   model.scale.set(1, 1, 1)
-  model.updateMatrixWorld(true)
+  // Update the full parent chain so all matrixWorld values are current.
+  model.updateWorldMatrix(true, true)
 
   // Find the first (and only) mesh primitive
   let predMeshNode = null
@@ -89,54 +95,80 @@ function computePedestalTransform(model) {
   if (!predMeshNode) throw new Error('No mesh found in pred model')
 
   const pos = predMeshNode.geometry.attributes.position
-  const wm  = predMeshNode.matrixWorld
-  const v   = new THREE.Vector3()
 
-  // Iterate base-pose vertices in world space
-  let wMinX = Infinity, wMaxX = -Infinity
-  let wMinY = Infinity, wMaxY = -Infinity
-  let wMinZ = Infinity, wMaxZ = -Infinity
-  let lMinY = Infinity, lMaxY = -Infinity   // local (mesh) space Y
+  // Build a matrix that maps mesh vertices → parent local space.
+  // If model has no parent (legacy loadModels path), fall back to world space (parent = identity).
+  // Pre-multiply by the display rotation so the bounding box is computed
+  // for the as-displayed (rotated) model. Without this, centering is computed
+  // at rotation=0 but the offset is applied after rotation — asymmetric animals shift.
+  const R_display = new THREE.Matrix4().makeRotationY(MODEL_ROTATION_Y)
+  const meshToParentLocal = new THREE.Matrix4()
+  if (model.parent) {
+    const invParent = new THREE.Matrix4().copy(model.parent.matrixWorld).invert()
+    const base = new THREE.Matrix4().multiplyMatrices(invParent, predMeshNode.matrixWorld)
+    meshToParentLocal.multiplyMatrices(R_display, base)
+  } else {
+    meshToParentLocal.multiplyMatrices(R_display, predMeshNode.matrixWorld)
+  }
+
+  const v   = new THREE.Vector3()
+  let sMinX = Infinity, sMaxX = -Infinity
+  let sMinY = Infinity, sMaxY = -Infinity
+  let sMinZ = Infinity, sMaxZ = -Infinity
+  let lMinY = Infinity, lMaxY = -Infinity   // raw geometry Y (for floor tracking)
 
   for (let i = 0; i < pos.count; i++) {
-    v.fromBufferAttribute(pos, i).applyMatrix4(wm)
-    if (v.x < wMinX) wMinX = v.x;  if (v.x > wMaxX) wMaxX = v.x
-    if (v.y < wMinY) wMinY = v.y;  if (v.y > wMaxY) wMaxY = v.y
-    if (v.z < wMinZ) wMinZ = v.z;  if (v.z > wMaxZ) wMaxZ = v.z
+    v.fromBufferAttribute(pos, i).applyMatrix4(meshToParentLocal)
+    if (v.x < sMinX) sMinX = v.x;  if (v.x > sMaxX) sMaxX = v.x
+    if (v.y < sMinY) sMinY = v.y;  if (v.y > sMaxY) sMaxY = v.y
+    if (v.z < sMinZ) sMinZ = v.z;  if (v.z > sMaxZ) sMaxZ = v.z
     const ly = pos.getY(i)
     if (ly < lMinY) lMinY = ly;    if (ly > lMaxY) lMaxY = ly
   }
 
-  const worldSizeY  = Math.max(wMaxY - wMinY, 0.001)
+  // Target height and volume-based cap.
+  // Scale is first computed to make the model BASE_HEIGHT tall.
+  // Then capped by cube-root of bounding box volume — this is gentler than
+  // max-axis for elongated animals (e.g. crocodile) which have large volume
+  // but the height cap alone makes them reasonable.
+  const BASE_HEIGHT   = 1.5
+  const MAX_VOL_CBRT  = 2.0   // cube-root cap: volume ≤ (2.0)³ = 8 units³
+
+  const parentSizeY = Math.max(sMaxY - sMinY, 0.001)
   const localSizeY  = Math.max(lMaxY - lMinY, 0.001)
-  const scale       = 1.8 / worldSizeY
-  const offset      = new THREE.Vector3(
-    -((wMinX + wMaxX) / 2) * scale,
-    1.6 - wMinY * scale,
-    -((wMinZ + wMaxZ) / 2) * scale,
+  const sizeX       = sMaxX - sMinX
+  const sizeZ       = sMaxZ - sMinZ
+
+  const tentativeScale = BASE_HEIGHT / parentSizeY
+  const cbrtVol = Math.cbrt(Math.max(sizeX, 0.001) * parentSizeY * Math.max(sizeZ, 0.001))
+  const scale = Math.min(tentativeScale, MAX_VOL_CBRT / cbrtVol)
+
+  const offset = new THREE.Vector3(
+    -((sMinX + sMaxX) / 2) * scale,   // center X over slot origin in local space
+    1.6 - sMinY * scale,               // place bottom at pedestal top Y=1.6
+    -((sMinZ + sMaxZ) / 2) * scale,   // center Z over slot origin in local space
   )
-  // floorScaleY = child_scale_Y * scale = (worldSizeY/localSizeY) * (1.8/worldSizeY) = 1.8/localSizeY
-  const floorScaleY  = 1.8 / localSizeY
+  const floorScaleY  = scale * parentSizeY / localSizeY
   const initialOffsetY = offset.y
 
-  console.log(`[pedestal] worldSizeY=${worldSizeY.toFixed(3)} scale=${scale.toFixed(3)} wMinY=${wMinY.toFixed(4)} lMinY=${lMinY.toFixed(4)} floorScaleY=${floorScaleY.toFixed(4)}`)
-  console.log(`  → script expected: lMinY≈0.4144 floorScaleY≈3.0735`)
+  console.log(`[pedestal] parentSizeY=${parentSizeY.toFixed(3)} cbrtVol=${cbrtVol.toFixed(3)} scale=${scale.toFixed(3)} sMinY=${sMinY.toFixed(4)} lMinY=${lMinY.toFixed(4)} floorScaleY=${floorScaleY.toFixed(4)}`)
   return { scale, offset, predMeshNode, baseLocalMinY: lMinY, floorScaleY, initialOffsetY }
 }
 
 // Step 2: apply the shared transform to any model
+// Rotation of −15° around Y gives a slight clockwise angle — more dynamic than dead-on front.
+const MODEL_ROTATION_Y = -Math.PI * 15 / 180
+
 function applyPedestalTransform(model, scale, offset) {
   model.position.set(0, 0, 0)
+  model.rotation.set(0, 0, 0)
   model.scale.set(1, 1, 1)
-  model.updateMatrixWorld(true)
-
-  const box = new THREE.Box3().setFromObject(model)
-  const size = box.getSize(new THREE.Vector3())
 
   model.scale.setScalar(scale)
+  model.rotation.y = MODEL_ROTATION_Y
   model.position.copy(offset)
 
-  console.log(`[applied] size=${size.x.toFixed(2)}×${size.y.toFixed(2)}×${size.z.toFixed(2)} → scale=${scale.toFixed(3)} pos=(${offset.x.toFixed(2)},${offset.y.toFixed(2)},${offset.z.toFixed(2)})`)
+  console.log(`[applied] scale=${scale.toFixed(3)} pos=(${offset.x.toFixed(2)},${offset.y.toFixed(2)},${offset.z.toFixed(2)})`)
 }
 
 function applyMeshMaterial(model) {
@@ -153,8 +185,8 @@ function applyMeshMaterial(model) {
     }
 
     node.material = new THREE.MeshStandardMaterial({
-      color: 0xb89a72,
-      roughness: 0.85,
+      color: 0xf0ebe3,   // ivory/bone white — reads cleanly under bright gallery lights
+      roughness: 0.8,
       metalness: 0.0,
     })
   })
@@ -165,9 +197,9 @@ function applyBonesMaterial(model) {
     if (!node.isMesh) return
     node.castShadow = false
     node.material = new THREE.MeshBasicMaterial({
-      color: 0xff8c00,
+      color: 0x5580c0,   // steel blue — x-ray/anatomical illustration look
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.88,
     })
   })
 }
@@ -206,11 +238,13 @@ export async function loadExhibit(index, slotGroup, onProgress) {
   // ── Pred mesh ────────────────────────────────────────────────────────
   const predModel = predGltf.scene
   applyMeshMaterial(predModel)
+  // Add to slotGroup BEFORE computing transform so matrixWorld includes the
+  // slot's world position — this makes X/Z centering correct for any carousel slot.
+  slotGroup.add(predModel)
   const { scale: sharedScale, offset: sharedOffset,
           predMeshNode, baseLocalMinY, floorScaleY, initialOffsetY } = computePedestalTransform(predModel)
   applyPedestalTransform(predModel, sharedScale, sharedOffset)
   predModel.visible = true
-  slotGroup.add(predModel)
 
   const predMixer = new THREE.AnimationMixer(predModel)
   const predAction = predGltf.animations.length

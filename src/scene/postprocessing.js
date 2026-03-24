@@ -37,7 +37,7 @@ export function buildPostProcessing(renderer, scene, camera) {
     new THREE.Vector2(window.innerWidth, window.innerHeight),
     0.0,   // strength — starts at 0, pulses on magic moment
     0.4,   // radius
-    0.85   // threshold
+    0.92   // threshold — raised for bright scene; only true highlights bloom, not the whole surface
   )
   composer.addPass(bloom)
 

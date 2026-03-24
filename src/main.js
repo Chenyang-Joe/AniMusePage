@@ -2,9 +2,11 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { buildMuseum } from './scene/museum.js'
 import { buildCarousel } from './scene/carousel.js'
+import { CarouselCamera } from './scene/carousel-camera.js'
 import { ExhibitManager } from './scene/exhibit-manager.js'
 import { buildPostProcessing } from './scene/postprocessing.js'
 import { setupControls } from './interaction/controls.js'
+import { SparkleEffect } from './effects/sparkle.js'
 
 // ── Renderer ───────────────────────────────────────────────────────────────
 const container = document.getElementById('canvas-container')
@@ -17,7 +19,7 @@ renderer.setSize(window.innerWidth, window.innerHeight)
 renderer.shadowMap.enabled = true
 renderer.shadowMap.type = THREE.PCFShadowMap
 renderer.toneMapping = THREE.ACESFilmicToneMapping
-renderer.toneMappingExposure = 1.2
+renderer.toneMappingExposure = 1.0
 container.appendChild(renderer.domElement)
 
 // ── Scene & Camera ─────────────────────────────────────────────────────────
@@ -39,12 +41,18 @@ orbit.update()
 // ── Museum Scene (lights + floor, no pedestal) ─────────────────────────────
 const lights = buildMuseum(scene)
 
-// ── Carousel (15 pedestals on circle R=12) ─────────────────────────────────
-const N = 15, R = 12
-const { slots, rotateTo, update: updateTween } = buildCarousel(scene, N, R)
+// ── Carousel (15 pedestals on circle R=12, fixed — camera moves instead) ──────
+const N = 14, R = 12
+const { slots, update: updateTween } = buildCarousel(scene, N, R)
+
+// ── Camera controller — flies between exhibit viewpoints ───────────────────
+const carouselCamera = new CarouselCamera(camera, orbit, N, R)
 
 // ── Post-processing ────────────────────────────────────────────────────────
 const { composer, bloom } = buildPostProcessing(renderer, scene, camera)
+
+// ── Sparkle effect ─────────────────────────────────────────────────────────
+const sparkle = new SparkleEffect(scene)
 
 // ── Loading UI ─────────────────────────────────────────────────────────────
 const loadingEl  = document.getElementById('loading')
@@ -78,9 +86,14 @@ fetch(`${BASE}models/exhibits/manifest.json`)
       lights,
       bloom,
       manager,
-      carousel: { rotateTo, update: updateTween },
-      onAlive:      () => { needsBloom = true },
-      onResetBloom: () => { needsBloom = false; bloom.strength = 0 },
+      carouselCamera,
+      onAlive: () => {
+        needsBloom = true
+        // Sparkle around the active exhibit's world position
+        const { target } = carouselCamera.viewForSlot(manager.activeIndex)
+        sparkle.startContinuous(new THREE.Vector3(target.x, 1.6, target.z))
+      },
+      onResetBloom: () => { needsBloom = false; bloom.strength = 0; sparkle.stopContinuous() },
     })
     updateUI()
 
@@ -90,13 +103,15 @@ fetch(`${BASE}models/exhibits/manifest.json`)
     function animate() {
       requestAnimationFrame(animate)
       const delta = clock.getDelta()
-      orbit.update()
+      carouselCamera.update(delta)          // advance camera fly (calls orbit.update on completion)
+      if (!carouselCamera.flying) orbit.update()  // normal orbit damping when not flying
       updateTween(delta)
       manager.update(delta)
 
       const { updatePredFloor, updateBonesFloor } = manager.getFloorTracker()
       updatePredFloor()
       updateBonesFloor()
+      sparkle.update(delta)
 
       if (needsBloom) composer.render()
       else renderer.render(scene, camera)

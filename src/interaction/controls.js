@@ -1,11 +1,12 @@
 import { Debug } from '../utils/debug.js'
 
 // Light intensities for static vs alive states.
-// Static = well-lit but not dramatic; Alive = spotlight drama.
-const STATIC_LIGHTS = { spotKey: 2.0, spotRim: 0.8, pointFill: 0.6, ambientLight: 0.25 }
-const ALIVE_LIGHTS  = { spotKey: 3.5, spotRim: 1.2, pointFill: 1.0, ambientLight: 0.35 }
+// Static = bright even gallery lighting.
+// Alive = theatrical: ceiling/ambient dim down, key spot stays moderate — "house lights down".
+const STATIC_LIGHTS = { spotKey: 2.2, spotRim: 0.5, pointFill: 0.3, ambientLight: 0.7, ceil: 2.0 }
+const ALIVE_LIGHTS  = { spotKey: 1.5, spotRim: 0.5, pointFill: 0.3, ambientLight: 0.7, ceil: 2.0 }
 
-export function setupControls({ lights, bloom, manager, carousel, onAlive, onResetBloom }) {
+export function setupControls({ lights, bloom, manager, carouselCamera, onAlive, onResetBloom }) {
   const btnLife    = document.getElementById('btn-life')
   const btnPrev    = document.getElementById('btn-prev')
   const btnNext    = document.getElementById('btn-next')
@@ -57,23 +58,24 @@ export function setupControls({ lights, bloom, manager, carousel, onAlive, onRes
       flash.style.opacity = '0'
     }, 200)
 
-    // Bloom pulse
+    // Bloom pulse — peak is dramatic but decays quickly; settles low so model stays solid
     let t = 0
     const pulse = setInterval(() => {
       t += 0.05
-      bloom.strength = Math.max(0, 3.5 * Math.exp(-t * 3))
-      if (t > 2) { bloom.strength = 0.4; clearInterval(pulse) }
+      bloom.strength = Math.max(0, 1.4 * Math.exp(-t * 3.5))
+      if (t > 2) { bloom.strength = 0.3; clearInterval(pulse) }
     }, 16)
 
     // Start animations
     if (ex.predAction) { ex.predAction.reset(); ex.predAction.play() }
     if (ex.bonesAction) { ex.bonesAction.reset(); ex.bonesAction.play() }
 
-    // Brighten lights from static → alive
+    // Theatrical transition: ceiling + ambient dim, key spot stays
     animateLightIntensity(lights.spotKey,     ALIVE_LIGHTS.spotKey,     1200)
     animateLightIntensity(lights.spotRim,     ALIVE_LIGHTS.spotRim,     1200)
     animateLightIntensity(lights.pointFill,   ALIVE_LIGHTS.pointFill,   1200)
     animateLightIntensity(lights.ambientLight, ALIVE_LIGHTS.ambientLight, 1200)
+    lights.ceilLights?.forEach(l => animateLightIntensity(l, ALIVE_LIGHTS.ceil, 1200))
 
     setTimeout(() => updateUI(), 800)
   })
@@ -128,11 +130,32 @@ export function setupControls({ lights, bloom, manager, carousel, onAlive, onRes
     // Reset bloom/composer back to plain renderer
     if (onResetBloom) onResetBloom()
 
-    // Restore static lighting immediately
+    // Move spotlights to the destination slot's world position immediately.
+    // Offsets are expressed in inward/lateral axes so they stay correct at any
+    // position around the circle — not just at slot 0 where inward = +Z.
+    const { target: slotTarget } = carouselCamera.viewForSlot(nextIdx)
+    const sx = slotTarget.x, sz = slotTarget.z
+    const θ  = nextIdx * Math.PI * 2 / N
+    const inX =  -Math.sin(θ), inZ = Math.cos(θ)   // inward: toward circle center / camera
+    const ltX = inZ,          ltZ = -inX             // lateral: perpendicular to inward
+
+    // Key light: 3 units inward + 2 lateral + elevated (was (2,7,3) for slot 0 ✓)
+    lights.spotKey.position.set(sx + inX*3 + ltX*2, 7, sz + inZ*3 + ltZ*2)
+    lights.spotKey.target.position.set(sx, 1.8, sz)
+    lights.spotKey.target.updateMatrixWorld()
+    // Rim light: 4 units OUTWARD − 3 lateral (backlight for depth, was (−3,5,−4) for slot 0 ✓)
+    lights.spotRim.position.set(sx - inX*4 - ltX*3, 5, sz - inZ*4 - ltZ*3)
+    lights.spotRim.target.position.set(sx, 1.8, sz)
+    lights.spotRim.target.updateMatrixWorld()
+    // Fill: 2 units inward − 3 lateral (was (−3,3,2) for slot 0 ✓)
+    lights.pointFill.position.set(sx + inX*2 - ltX*3, 3, sz + inZ*2 - ltZ*3)
+
+    // Restore static lighting intensities
     animateLightIntensity(lights.spotKey,     STATIC_LIGHTS.spotKey,     600)
     animateLightIntensity(lights.spotRim,     STATIC_LIGHTS.spotRim,     600)
     animateLightIntensity(lights.pointFill,   STATIC_LIGHTS.pointFill,   600)
     animateLightIntensity(lights.ambientLight, STATIC_LIGHTS.ambientLight, 600)
+    lights.ceilLights?.forEach(l => animateLightIntensity(l, STATIC_LIGHTS.ceil, 600))
 
     Debug.log('controls',
       `navigate ${direction > 0 ? 'right' : 'left'} | prev=${prevIdx} → next=${nextIdx}`)
@@ -141,13 +164,17 @@ export function setupControls({ lights, bloom, manager, carousel, onAlive, onRes
     btnPrev.disabled = true
     btnNext.disabled = true
 
-    // Activate AFTER tween completes so computePedestalTransform
-    // runs with the slot at world origin
-    carousel.rotateTo(nextIdx, () => {
+    // Start loading immediately (computePedestalTransform now works at any world position)
+    manager.activate(nextIdx).then(() => {
+      if (!navigating) updateUI()
+    })
+
+    // Fly camera to the next slot; re-enable nav when done
+    carouselCamera.flyTo(nextIdx, () => {
       navigating = false
       btnPrev.disabled = false
       btnNext.disabled = false
-      manager.activate(nextIdx).then(() => updateUI())
+      updateUI()
     })
   }
 

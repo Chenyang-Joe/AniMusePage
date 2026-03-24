@@ -29,8 +29,8 @@ export class ExhibitManager {
     this._floorTracker  = null // cached for current active exhibit
   }
 
-  // Activate exhibit i: load it (must be called after the slot is centered),
-  // then unload exhibits that are far away.
+  // Activate exhibit i: load it and unload exhibits that are far away.
+  // Can be called at any time — computePedestalTransform works at any world position.
   async activate(index) {
     this.activeIndex = index
     Debug.log('manager', `activate(${index})`)
@@ -42,8 +42,6 @@ export class ExhibitManager {
       this._loadOrder.unshift(index)
     }
 
-    // Load center exhibit — MUST be called after the carousel has centered this slot,
-    // so computePedestalTransform runs with the slot at world origin (rotation=0).
     await this._loadOne(index)
 
     // Unload exhibits that are 5+ slots away
