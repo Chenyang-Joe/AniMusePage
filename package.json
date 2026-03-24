@@ -5,7 +5,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "deploy:ai4ce": "sed -i '' \"s|/AniMusePage/|/AniMuse/|\" vite.config.js && vite build && gh-pages -d dist -r git@github.com:ai4ce/AniMuse.git && sed -i '' \"s|/AniMuse/|/AniMusePage/|\" vite.config.js"
   },
   "dependencies": {
     "gh-pages": "^6.3.0",
