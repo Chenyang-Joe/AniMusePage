@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Night at the Museum</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Noto+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #e0dcd6; overflow: hidden; font-family: system-ui, -apple-system, sans-serif; }
@@ -16,6 +19,53 @@
 
     canvas { display: block; }
 
+    /* ── Exhibit info overlay (top-left) ─────────────────────────── */
+    #exhibit-info {
+      position: fixed;
+      top: 40px;
+      left: 44px;
+      z-index: 10;
+      pointer-events: none;
+      transition: color 0.15s ease, opacity 0.4s ease;
+    }
+    #exhibit-info .state {
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      font-weight: 400;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: rgba(30, 28, 24, 0.4);
+      margin-bottom: 10px;
+      transition: color 0.15s ease;
+    }
+    #exhibit-info .state strong {
+      font-weight: 700;
+      color: rgba(30, 28, 24, 0.6);
+      transition: color 0.15s ease;
+    }
+    #exhibit-info .species {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 52px;
+      font-weight: 300;
+      line-height: 1.05;
+      color: rgba(30, 28, 24, 0.7);
+      transition: color 0.15s ease;
+    }
+    #exhibit-info .action {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 52px;
+      font-weight: 300;
+      line-height: 1.05;
+      color: rgba(30, 28, 24, 0.45);
+      margin-top: -5px;
+      transition: color 0.15s ease;
+    }
+    /* Night mode — light text */
+    #exhibit-info.night .state { color: rgba(240, 236, 230, 0.45); }
+    #exhibit-info.night .state strong { color: rgba(240, 236, 230, 0.7); }
+    #exhibit-info.night .species { color: rgba(240, 236, 230, 0.75); }
+    #exhibit-info.night .action { color: rgba(240, 236, 230, 0.5); }
+
     /* Flash overlay */
     #flash {
       position: fixed;
@@ -27,16 +77,16 @@
       transition: opacity 0.05s ease-in;
     }
 
-    /* UI Controls */
+    /* ── Bottom controls ─────────────────────────────────────────── */
     #controls {
       position: fixed;
-      bottom: 40px;
+      bottom: 32px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 14px;
+      gap: 12px;
       z-index: 10;
     }
 
@@ -46,20 +96,21 @@
     }
 
     #btn-life {
-      padding: 12px 32px;
+      min-width: 260px;
+      padding: 14px 36px;
       background: rgba(255, 255, 255, 0.65);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
       border: 1px solid rgba(0, 0, 0, 0.18);
       color: #1a1a18;
-      font-size: 12px;
+      font-size: 13px;
       letter-spacing: 2.5px;
       text-transform: uppercase;
       cursor: pointer;
       border-radius: 2px;
-      transition: background 0.2s, box-shadow 0.2s;
+      transition: background 0.2s, box-shadow 0.2s, opacity 0.3s;
     }
-    #btn-life:hover {
+    #btn-life:hover:not(:disabled) {
       background: rgba(255, 255, 255, 0.88);
       box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
     }
@@ -79,11 +130,11 @@
       overflow: hidden;
     }
     #toggle-view button {
-      padding: 7px 22px;
+      padding: 9px 26px;
       background: transparent;
       border: none;
       color: rgba(20, 20, 18, 0.45);
-      font-size: 12px;
+      font-size: 13px;
       letter-spacing: 1px;
       cursor: pointer;
       transition: all 0.2s;
@@ -100,8 +151,8 @@
       gap: 28px;
     }
     .btn-nav {
-      width: 40px;
-      height: 40px;
+      width: 48px;
+      height: 48px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -111,11 +162,11 @@
       border: 1px solid rgba(0, 0, 0, 0.15);
       border-radius: 50%;
       color: #1a1a18;
-      font-size: 16px;
+      font-size: 20px;
       cursor: pointer;
       transition: background 0.2s, box-shadow 0.2s;
     }
-    .btn-nav:hover {
+    .btn-nav:hover:not(:disabled) {
       background: rgba(255, 255, 255, 0.9);
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
     }
@@ -123,6 +174,220 @@
       opacity: 0.3;
       cursor: default;
       box-shadow: none;
+    }
+
+    /* ── Dot navigation ──────────────────────────────────────────── */
+    #dot-nav {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: rgba(30, 28, 24, 0.15);
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      transition: background 0.25s, transform 0.25s;
+    }
+    .dot:hover {
+      background: rgba(30, 28, 24, 0.35);
+      transform: scale(1.3);
+    }
+    .dot.active {
+      background: rgba(30, 28, 24, 0.55);
+      transform: scale(1.3);
+    }
+
+    /* ── Landing page ────────────────────────────────────────── */
+    #landing-page {
+      position: fixed;
+      inset: 0;
+      z-index: 15;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.6s ease;
+      pointer-events: none;
+    }
+    .landing-content {
+      max-width: 800px;
+      padding: 0 32px;
+      text-align: center;
+      pointer-events: auto;
+    }
+    .landing-content h1 {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 72px;
+      font-weight: 300;
+      font-style: italic;
+      line-height: 1.1;
+      color: rgba(30, 28, 24, 0.8);
+      margin-bottom: 16px;
+    }
+    .landing-content .subtitle {
+      font-family: 'Noto Sans', system-ui, sans-serif;
+      font-size: 22px;
+      font-weight: 300;
+      color: rgba(30, 28, 24, 0.45);
+      margin-bottom: 32px;
+      line-height: 1.4;
+      letter-spacing: 0.5px;
+    }
+    .landing-content .authors {
+      font-family: 'Noto Sans', system-ui, sans-serif;
+      font-size: 17px;
+      font-weight: 400;
+      color: rgba(30, 28, 24, 0.6);
+      line-height: 1.8;
+      margin-bottom: 28px;
+    }
+    .landing-links {
+      display: flex;
+      justify-content: center;
+      gap: 14px;
+    }
+    .landing-links a {
+      padding: 9px 24px;
+      background: rgba(255, 255, 255, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 2px;
+      color: rgba(30, 28, 24, 0.4);
+      font-family: 'Noto Sans', system-ui, sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      text-decoration: none;
+      cursor: default;
+    }
+
+    /* ── Abstract page (third page) ──────────────────────────── */
+    #abstract-page {
+      position: fixed;
+      inset: 0;
+      z-index: 15;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-y: auto;
+      transition: opacity 0.5s ease;
+      opacity: 0;
+      pointer-events: none;
+    }
+    #abstract-page {
+      background: rgba(18, 18, 22, 0.8);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .abstract-content {
+      max-width: 720px;
+      padding: 8vh 32px 80px;
+      margin: 0 20px;
+    }
+    .abstract-content h2 {
+      font-family: 'Noto Sans', system-ui, sans-serif;
+      font-size: 22px;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .abstract-content p {
+      font-family: 'Noto Sans', system-ui, sans-serif;
+      font-size: 15px;
+      font-weight: 300;
+      line-height: 1.8;
+      color: rgba(241, 245, 249, 0.75);
+      text-align: justify;
+    }
+    .abstract-content .ack {
+      margin-top: 36px;
+    }
+    .abstract-content .ack h2 {
+      font-size: 18px;
+    }
+    .abstract-content .ack p {
+      font-size: 13px;
+      color: rgba(241, 245, 249, 0.45);
+    }
+    .abstract-content .btn-close-abstract {
+      display: block;
+      margin: 40px auto 0;
+      padding: 10px 28px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+      color: rgba(241, 245, 249, 0.6);
+      font-family: 'Noto Sans', system-ui, sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .abstract-content .btn-close-abstract:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+    .scroll-hint {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: rgba(30, 28, 24, 0.3);
+      font-family: 'Noto Sans', system-ui, sans-serif;
+      animation: bobHint 2s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 16;
+      transition: opacity 0.4s ease;
+    }
+    @keyframes bobHint {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(-6px); }
+    }
+
+    /* ── Right-side buttons (shared) ─────────────────────────── */
+    #btn-back-overview, #btn-abstract {
+      position: fixed;
+      right: 44px;
+      z-index: 10;
+      width: 240px;
+      padding: 12px 0;
+      background: rgba(255, 255, 255, 0.55);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 0, 0, 0.14);
+      border-radius: 2px;
+      color: rgba(30, 28, 24, 0.5);
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 12px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.2s, box-shadow 0.2s, opacity 0.4s;
+      opacity: 0;
+      pointer-events: none;
+    }
+    #btn-back-overview { top: 40px; }
+    #btn-abstract { top: 96px; }
+    #btn-back-overview:hover, #btn-abstract:hover {
+      background: rgba(255, 255, 255, 0.85);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+    }
+
+    /* ── Controls & exhibit-info fade ────────────────────────── */
+    #controls, #exhibit-info {
+      transition: opacity 0.4s ease;
     }
 
     /* Loading screen */
@@ -164,16 +429,56 @@
   <div id="flash"></div>
   <div id="canvas-container"></div>
 
+  <div id="landing-page">
+    <div class="landing-content">
+      <h1>Night at the Museum</h1>
+      <p class="subtitle">A Scalable Framework for Text-Driven Mesh Motion Generation</p>
+      <p class="authors">
+        Chenyang Xu, Zeyu Jiang, Guangzhao He, Haoran Li, Shichen Zhang,<br>
+        Juexiao Zhang, Sihang Li, Chen Feng, Jing Zhang<br>
+        <span style="font-size:13px;color:rgba(30,28,24,0.35);font-style:italic;">(tentative)</span><br>
+        <span style="font-size:14px;color:rgba(30,28,24,0.4);letter-spacing:1px;">2026 &middot; In Submission</span>
+      </p>
+      <div class="landing-links">
+        <a>Code (Coming Soon)</a>
+        <a>arXiv (Coming Soon)</a>
+      </div>
+    </div>
+    <div class="scroll-hint">&darr; Scroll to Enter Museum</div>
+  </div>
+
+  <div id="abstract-page">
+    <div class="abstract-content">
+      <h2>Abstract</h2>
+      <p>Animating static meshes into realistic motion conditioned on text prompts remains a fundamental yet challenging problem. Existing skeleton-based approaches suffer from limited semantic expressiveness, skinning artifacts, and manual effort for data curation, which restrict scalability. To address these limitations, we propose AniMuse, a semantic-aware and scalable framework for text-driven mesh motion generation. We introduce AniMuse Gaussian Nodes, a novel rigging representation that unifies geometric control with semantic information by combining learnable Gaussian control nodes with visual semantic features, without requiring predefined skeletons or manual annotation. This representation enables high-fidelity, semantically consistent deformation while naturally aligning with text semantics. Building on this representation, we develop a semantic-aware diffusion model that generates SE(3) trajectories for each control node. Since our pipeline assumes no fixed skeleton topology or category-specific prior, it naturally generalizes across mesh categories. We demonstrate its effectiveness on animal motion generation and further curate MuseumAnimal, a large-scale animal mesh motion dataset, to validate the scalability of our skeleton-free paradigm. Comprehensive experiments show that AniMuse achieves superior performance in both in-domain and out-of-domain benchmarks.</p>
+      <div class="ack">
+        <h2>Acknowledgements</h2>
+        <p>Demo data is extracted from Planet Zoo using code provided by Animo. Visual design references: Ruinart Unconventional Gallery, UNESCO Virtual Museum, Microsoft &times; NHM Visions of Nature.</p>
+      </div>
+      <button class="btn-close-abstract" id="btn-close-abstract">Back to Demo</button>
+    </div>
+  </div>
+
+  <button id="btn-back-overview">Back to Overview</button>
+  <button id="btn-abstract">Abstract &amp; Paper Info</button>
+
+  <div id="exhibit-info">
+    <div class="state">Day at the Museum</div>
+    <div class="species"></div>
+    <div class="action"></div>
+  </div>
+
   <div id="controls">
-    <button id="btn-life" disabled>✦ Bring Static Exhibition to Life</button>
     <div id="toggle-view">
       <button id="btn-mesh" class="active">Mesh</button>
       <button id="btn-bones">Skeleton</button>
     </div>
+    <button id="btn-life" disabled>Bring to Life</button>
     <div id="nav-row">
       <button class="btn-nav" id="btn-prev">&#8592;</button>
       <button class="btn-nav" id="btn-next">&#8594;</button>
     </div>
+    <div id="dot-nav"></div>
   </div>
 
   <script type="module" src="/src/main.js"></script>

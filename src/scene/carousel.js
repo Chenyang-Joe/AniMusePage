@@ -26,7 +26,7 @@ export function buildCarousel(scene, N, R) {
 
   for (let i = 0; i < N; i++) {
     const angle = i * TWO_PI / N
-    const { group, plateMat } = buildPedestal()
+    const { group } = buildPedestal()
     group.position.set(
       R * Math.sin(angle),
       0,
@@ -36,7 +36,7 @@ export function buildCarousel(scene, N, R) {
     // the slot's world rotation.y = angle + (-angle) = 0 → faces the camera.
     group.rotation.y = -angle
     carouselGroup.add(group)
-    slots.push({ group, plateMat })
+    slots.push({ group })
   }
 
   // ── Smooth rotation tween ─────────────────────────────────────────────
@@ -61,6 +61,18 @@ export function buildCarousel(scene, N, R) {
     Debug.log('carousel', `rotate to index ${index} | rotation.y: ${tweenFrom.toFixed(3)} → ${tweenTo.toFixed(3)}`)
   }
 
+  // Rotate by a specific angle (radians), ending back at rotation.y = 0
+  function rotateBy(angle, onComplete) {
+    tweenFrom = carouselGroup.rotation.y
+    tweenTo   = tweenFrom + angle
+    tweenT    = 0
+    onDone    = () => {
+      // Normalize back to 0 to avoid drift
+      carouselGroup.rotation.y = 0
+      if (onComplete) onComplete()
+    }
+  }
+
   function update(delta) {
     if (tweenT >= 1) return
     tweenT = Math.min(tweenT + delta * TWEEN_SPEED, 1)
@@ -74,5 +86,5 @@ export function buildCarousel(scene, N, R) {
     }
   }
 
-  return { carouselGroup, slots, rotateTo, update }
+  return { carouselGroup, slots, rotateTo, rotateBy, update }
 }

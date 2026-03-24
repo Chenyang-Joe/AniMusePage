@@ -7,6 +7,8 @@ import { ExhibitManager } from './scene/exhibit-manager.js'
 import { buildPostProcessing } from './scene/postprocessing.js'
 import { setupControls } from './interaction/controls.js'
 import { SparkleEffect } from './effects/sparkle.js'
+import { PageManager } from './interaction/page-manager.js'
+import yaml from 'js-yaml'
 
 // ── Renderer ───────────────────────────────────────────────────────────────
 const container = document.getElementById('canvas-container')
@@ -25,17 +27,18 @@ container.appendChild(renderer.domElement)
 // ── Scene & Camera ─────────────────────────────────────────────────────────
 const scene  = new THREE.Scene()
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100)
-camera.position.set(0, 3.5, 6)
-camera.lookAt(0, 2, 0)
+camera.position.set(0, 25, 12)
+camera.lookAt(0, 0, 12)
 
 // ── Orbit Controls ─────────────────────────────────────────────────────────
 const orbit = new OrbitControls(camera, renderer.domElement)
-orbit.target.set(0, 2, 0)
+orbit.target.set(0, 0, 12)
 orbit.enableDamping = true
 orbit.dampingFactor = 0.05
 orbit.minDistance = 2
 orbit.maxDistance = 12
 orbit.maxPolarAngle = Math.PI / 2
+orbit.enabled = false
 orbit.update()
 
 // ── Museum Scene (lights + floor, no pedestal) ─────────────────────────────
@@ -61,14 +64,16 @@ loadingBar.style.width = '10%'
 
 // ── Load manifest + activate first exhibit ─────────────────────────────────
 const BASE = import.meta.env.BASE_URL
-fetch(`${BASE}models/exhibits/manifest.json`)
-  .then(r => r.json())
+fetch(`${BASE}models/exhibits/exhibits.yaml`)
+  .then(r => r.text())
+  .then(text => yaml.load(text))
   .then(async manifest => {
     const manager = new ExhibitManager(slots, manifest)
 
-    loadingBar.style.width = '30%'
-    await manager.activate(0)
-    loadingBar.style.width = '100%'
+    await manager.loadAll((i, total) => {
+      loadingBar.style.width = `${10 + 90 * (i + 1) / total}%`
+    })
+    manager.activeIndex = 0
 
     // Pre-warm the composer so its GPU buffers are initialized before first use.
     // Without this, the first composer.render() call has uninitialized bloom buffers
@@ -80,13 +85,17 @@ fetch(`${BASE}models/exhibits/manifest.json`)
     loadingEl.style.opacity = '0'
     setTimeout(() => { loadingEl.style.display = 'none' }, 800)
 
+    // ── Page manager (landing ↔ demo transitions) ─────────────────────
+    const pageManager = new PageManager(camera, orbit, carouselCamera, manager)
+
     // ── Controls ───────────────────────────────────────────────────────
     let needsBloom = false
-    const { updateUI } = setupControls({
+    const { updateUI, resetActiveToStatic } = setupControls({
       lights,
       bloom,
       manager,
       carouselCamera,
+      manifest,
       onAlive: () => {
         needsBloom = true
         // Sparkle around the active exhibit's world position
@@ -97,14 +106,18 @@ fetch(`${BASE}models/exhibits/manifest.json`)
     })
     updateUI()
 
+    // Reset exhibit to static when leaving demo
+    pageManager._onLeaveDemo = resetActiveToStatic
+
     // ── Render loop ───────────────────────────────────────────────────
     const clock = new THREE.Clock()
 
     function animate() {
       requestAnimationFrame(animate)
       const delta = clock.getDelta()
+      pageManager.update(delta)
       carouselCamera.update(delta)          // advance camera fly (calls orbit.update on completion)
-      if (!carouselCamera.flying) orbit.update()  // normal orbit damping when not flying
+      if (!carouselCamera.flying && pageManager.state === 'demo') orbit.update()
       updateTween(delta)
       manager.update(delta)
 

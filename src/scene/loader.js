@@ -185,8 +185,8 @@ function applyMeshMaterial(model) {
     }
 
     node.material = new THREE.MeshStandardMaterial({
-      color: 0xf0ebe3,   // ivory/bone white — reads cleanly under bright gallery lights
-      roughness: 0.8,
+      color: 0xd4cec8,   // warm stone grey — plaster/resin cast specimen, distinct from walls
+      roughness: 0.6,
       metalness: 0.0,
     })
   })
@@ -196,10 +196,14 @@ function applyBonesMaterial(model) {
   model.traverse(node => {
     if (!node.isMesh) return
     node.castShadow = false
-    node.material = new THREE.MeshBasicMaterial({
-      color: 0x5580c0,   // steel blue — x-ray/anatomical illustration look
+    node.material = new THREE.MeshStandardMaterial({
+      color: 0xd4cec8,
+      roughness: 0.35,
+      metalness: 0.0,
       transparent: true,
-      opacity: 0.88,
+      opacity: 0.55,
+      side: THREE.DoubleSide,
+      depthWrite: false,
     })
   })
 }

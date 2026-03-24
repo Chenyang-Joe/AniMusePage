@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { loadExhibit } from './loader.js'
-import { setPlateLabel } from './museum.js'
+
 import { Debug } from '../utils/debug.js'
 
 /**
@@ -29,37 +29,22 @@ export class ExhibitManager {
     this._floorTracker  = null // cached for current active exhibit
   }
 
-  // Activate exhibit i: load it and unload exhibits that are far away.
-  // Can be called at any time — computePedestalTransform works at any world position.
+  // Load all exhibits upfront
+  async loadAll(onProgress) {
+    for (let i = 0; i < this.N; i++) {
+      await this._loadOne(i)
+      if (onProgress) onProgress(i, this.N)
+    }
+    Debug.log('manager', `all ${this.N} exhibits loaded`)
+  }
+
+  // Activate exhibit i (switch focus, no loading/unloading)
   async activate(index) {
     this.activeIndex = index
     Debug.log('manager', `activate(${index})`)
 
-    // Update LRU order
-    if (!this._loadOrder.includes(index)) this._loadOrder.unshift(index)
-    else {
-      this._loadOrder.splice(this._loadOrder.indexOf(index), 1)
-      this._loadOrder.unshift(index)
-    }
-
+    // Load if not yet loaded (fallback for first call before loadAll)
     await this._loadOne(index)
-
-    // Unload exhibits that are 5+ slots away
-    for (const li of [...this._loadOrder]) {
-      const dist = Math.min(
-        Math.abs(li - index),
-        this.N - Math.abs(li - index),
-      )
-      if (dist >= 5) this._unloadOne(li)
-    }
-
-    const active = this.exhibits[index]
-    const meta   = this.manifest[index]
-    if (meta && active.status === 'loaded') {
-      const action = meta.action.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()
-      setPlateLabel(this.slots[index].plateMat, meta.animal, action)
-      Debug.log('manager', `nameplate set: "${meta.animal}" / "${action}"`)
-    }
 
     // Rebuild cached floor tracker for new active exhibit
     this._floorTracker = null

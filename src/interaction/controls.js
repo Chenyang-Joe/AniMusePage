@@ -1,12 +1,10 @@
 import { Debug } from '../utils/debug.js'
 
 // Light intensities for static vs alive states.
-// Static = bright even gallery lighting.
-// Alive = theatrical: ceiling/ambient dim down, key spot stays moderate — "house lights down".
-const STATIC_LIGHTS = { spotKey: 2.2, spotRim: 0.5, pointFill: 0.3, ambientLight: 0.7, ceil: 2.0 }
-const ALIVE_LIGHTS  = { spotKey: 1.5, spotRim: 0.5, pointFill: 0.3, ambientLight: 0.7, ceil: 2.0 }
+const STATIC_LIGHTS = { spotKey: 3.0, spotRim: 0.5, pointFill: 0.3, ambientLight: 0.7, ceil: 2.0 }
+const ALIVE_LIGHTS  = { spotKey: 2.2, spotRim: 0.5, pointFill: 0.3, ambientLight: 0.7, ceil: 2.0 }
 
-export function setupControls({ lights, bloom, manager, carouselCamera, onAlive, onResetBloom }) {
+export function setupControls({ lights, bloom, manager, carouselCamera, manifest, onAlive, onResetBloom }) {
   const btnLife    = document.getElementById('btn-life')
   const btnPrev    = document.getElementById('btn-prev')
   const btnNext    = document.getElementById('btn-next')
@@ -14,43 +12,102 @@ export function setupControls({ lights, bloom, manager, carouselCamera, onAlive,
   const btnMesh    = document.getElementById('btn-mesh')
   const btnBones   = document.getElementById('btn-bones')
   const flash      = document.getElementById('flash')
+  const dotNav     = document.getElementById('dot-nav')
+  const infoState  = document.querySelector('#exhibit-info .state')
+  const infoSpecies = document.querySelector('#exhibit-info .species')
+  const infoAction  = document.querySelector('#exhibit-info .action')
+  const infoEl      = document.getElementById('exhibit-info')
 
   let navigating = false
 
-  // ── UI sync ────────────────────────────────────────────────────────────
+  // ── Build dot indicators ──────────────────────────────────────────────
+  const dots = []
+  for (let i = 0; i < manager.N; i++) {
+    const dot = document.createElement('button')
+    dot.className = 'dot'
+    dot.addEventListener('click', () => navigateTo(i))
+    dotNav.appendChild(dot)
+    dots.push(dot)
+  }
+
+  // ── UI sync ───────────────────────────────────────────────────────────
   function updateUI() {
     const ex = manager.getActive()
+    const idx = manager.activeIndex
+    const meta = manifest[idx]
+
+    // Dots
+    dots.forEach((d, i) => d.classList.toggle('active', i === idx))
+
+    // Exhibit info overlay
+    if (meta) {
+      infoSpecies.textContent = meta.animal
+      infoAction.textContent = meta.action
+    }
+
     if (!ex || ex.status !== 'loaded') {
       btnLife.disabled = true
-      btnLife.textContent = '✦ Bring Static Exhibition to Life'
+      btnLife.textContent = 'Bring to Life'
       toggleView.style.display = 'none'
+      infoState.innerHTML = '<strong>Day</strong> at the Museum'
       return
     }
 
     if (ex.alive) {
-      btnLife.textContent = 'Alive'
-      btnLife.disabled = true
+      btnLife.textContent = 'Return to Static'
+      btnLife.disabled = false
       toggleView.style.display = 'flex'
+      infoState.innerHTML = '<strong>Night</strong> at the Museum'
+      infoEl.classList.add('night')
     } else {
-      btnLife.textContent = '✦ Bring Static Exhibition to Life'
+      btnLife.textContent = 'Bring to Life'
       btnLife.disabled = false
       toggleView.style.display = 'none'
+      infoState.innerHTML = '<strong>Day</strong> at the Museum'
+      infoEl.classList.remove('night')
     }
 
     btnMesh.classList.toggle('active', !ex.showingBones)
     btnBones.classList.toggle('active',  ex.showingBones)
   }
 
-  // ── Bring to Life ──────────────────────────────────────────────────────
+  // ── Reset exhibit to static ───────────────────────────────────────────
+  function resetToStatic(ex) {
+    if (!ex || !ex.alive) return
+    ex.predAction?.stop()
+    ex.bonesAction?.stop()
+    ex.alive = false
+    if (ex.predModel)  ex.predModel.visible = true
+    if (ex.bonesModel) ex.bonesModel.visible = false
+    ex.showingBones = false
+
+    if (onResetBloom) onResetBloom()
+
+    // Restore static lighting
+    animateLightIntensity(lights.spotKey,     STATIC_LIGHTS.spotKey,     600)
+    animateLightIntensity(lights.spotRim,     STATIC_LIGHTS.spotRim,     600)
+    animateLightIntensity(lights.pointFill,   STATIC_LIGHTS.pointFill,   600)
+    animateLightIntensity(lights.ambientLight, STATIC_LIGHTS.ambientLight, 600)
+    lights.ceilLights?.forEach(l => animateLightIntensity(l, STATIC_LIGHTS.ceil, 600))
+  }
+
+  // ── Bring to Life / Return to Static ──────────────────────────────────
   btnLife.addEventListener('click', () => {
     const ex = manager.getActive()
-    if (!ex || ex.status !== 'loaded' || ex.alive) return
-    ex.alive = true
+    if (!ex || ex.status !== 'loaded') return
 
+    // Return to static
+    if (ex.alive) {
+      resetToStatic(ex)
+      updateUI()
+      return
+    }
+
+    // Bring to life
+    ex.alive = true
     if (onAlive) onAlive()
 
-    // Subtle warm amber shimmer — much gentler than white flash
-    flash.style.backgroundColor = 'rgba(255, 180, 50, 1)'
+    flash.style.backgroundColor = 'rgba(255, 255, 255, 1)'
     flash.style.transition = 'opacity 0.15s ease-in'
     flash.style.opacity = '0.25'
     setTimeout(() => {
@@ -58,19 +115,16 @@ export function setupControls({ lights, bloom, manager, carouselCamera, onAlive,
       flash.style.opacity = '0'
     }, 200)
 
-    // Bloom pulse — peak is dramatic but decays quickly; settles low so model stays solid
     let t = 0
     const pulse = setInterval(() => {
       t += 0.05
-      bloom.strength = Math.max(0, 1.4 * Math.exp(-t * 3.5))
-      if (t > 2) { bloom.strength = 0.3; clearInterval(pulse) }
+      bloom.strength = Math.max(0, 2.5 * Math.exp(-t * 2.5))
+      if (t > 2.5) { bloom.strength = 0.4; clearInterval(pulse) }
     }, 16)
 
-    // Start animations
     if (ex.predAction) { ex.predAction.reset(); ex.predAction.play() }
     if (ex.bonesAction) { ex.bonesAction.reset(); ex.bonesAction.play() }
 
-    // Theatrical transition: ceiling + ambient dim, key spot stays
     animateLightIntensity(lights.spotKey,     ALIVE_LIGHTS.spotKey,     1200)
     animateLightIntensity(lights.spotRim,     ALIVE_LIGHTS.spotRim,     1200)
     animateLightIntensity(lights.pointFill,   ALIVE_LIGHTS.pointFill,   1200)
@@ -80,7 +134,7 @@ export function setupControls({ lights, bloom, manager, carouselCamera, onAlive,
     setTimeout(() => updateUI(), 800)
   })
 
-  // ── Mesh / Bones toggle ────────────────────────────────────────────────
+  // ── Mesh / Bones toggle ───────────────────────────────────────────────
   btnMesh.addEventListener('click', () => {
     const ex = manager.getActive()
     if (!ex || !ex.alive || !ex.showingBones) return
@@ -107,83 +161,81 @@ export function setupControls({ lights, bloom, manager, carouselCamera, onAlive,
     updateUI()
   })
 
-  // ── Navigation ─────────────────────────────────────────────────────────
-  function navigate(direction) {
+  // ── Navigation ────────────────────────────────────────────────────────
+  function navigateTo(targetIdx) {
     if (navigating) return
+    if (targetIdx === manager.activeIndex) return
     navigating = true
 
     const prevIdx = manager.activeIndex
-    const N       = manager.N
-    const nextIdx = ((prevIdx + direction) % N + N) % N
+    const N = manager.N
 
-    // Reset previous exhibit to static state
-    const prevEx = manager.exhibits[prevIdx]
-    if (prevEx.alive) {
-      prevEx.predAction?.stop()
-      prevEx.bonesAction?.stop()
-      prevEx.alive = false
-    }
-    if (prevEx.predModel)  prevEx.predModel.visible = true
-    if (prevEx.bonesModel) prevEx.bonesModel.visible = false
-    prevEx.showingBones = false
+    // Reset previous exhibit
+    resetToStatic(manager.exhibits[prevIdx])
 
-    // Reset bloom/composer back to plain renderer
-    if (onResetBloom) onResetBloom()
-
-    // Move spotlights to the destination slot's world position immediately.
-    // Offsets are expressed in inward/lateral axes so they stay correct at any
-    // position around the circle — not just at slot 0 where inward = +Z.
-    const { target: slotTarget } = carouselCamera.viewForSlot(nextIdx)
+    // Move spotlights to destination slot
+    const { target: slotTarget } = carouselCamera.viewForSlot(targetIdx)
     const sx = slotTarget.x, sz = slotTarget.z
-    const θ  = nextIdx * Math.PI * 2 / N
-    const inX =  -Math.sin(θ), inZ = Math.cos(θ)   // inward: toward circle center / camera
-    const ltX = inZ,          ltZ = -inX             // lateral: perpendicular to inward
+    const theta = targetIdx * Math.PI * 2 / N
+    const inX = -Math.sin(theta), inZ = Math.cos(theta)
+    const ltX = inZ, ltZ = -inX
 
-    // Key light: 3 units inward + 2 lateral + elevated (was (2,7,3) for slot 0 ✓)
     lights.spotKey.position.set(sx + inX*3 + ltX*2, 7, sz + inZ*3 + ltZ*2)
     lights.spotKey.target.position.set(sx, 1.8, sz)
     lights.spotKey.target.updateMatrixWorld()
-    // Rim light: 4 units OUTWARD − 3 lateral (backlight for depth, was (−3,5,−4) for slot 0 ✓)
     lights.spotRim.position.set(sx - inX*4 - ltX*3, 5, sz - inZ*4 - ltZ*3)
     lights.spotRim.target.position.set(sx, 1.8, sz)
     lights.spotRim.target.updateMatrixWorld()
-    // Fill: 2 units inward − 3 lateral (was (−3,3,2) for slot 0 ✓)
     lights.pointFill.position.set(sx + inX*2 - ltX*3, 3, sz + inZ*2 - ltZ*3)
 
-    // Restore static lighting intensities
     animateLightIntensity(lights.spotKey,     STATIC_LIGHTS.spotKey,     600)
     animateLightIntensity(lights.spotRim,     STATIC_LIGHTS.spotRim,     600)
     animateLightIntensity(lights.pointFill,   STATIC_LIGHTS.pointFill,   600)
     animateLightIntensity(lights.ambientLight, STATIC_LIGHTS.ambientLight, 600)
     lights.ceilLights?.forEach(l => animateLightIntensity(l, STATIC_LIGHTS.ceil, 600))
 
-    Debug.log('controls',
-      `navigate ${direction > 0 ? 'right' : 'left'} | prev=${prevIdx} → next=${nextIdx}`)
+    Debug.log('controls', `navigate prev=${prevIdx} → next=${targetIdx}`)
 
+    setNavDisabled(true)
     updateUI()
-    btnPrev.disabled = true
-    btnNext.disabled = true
 
-    // Start loading immediately (computePedestalTransform now works at any world position)
-    manager.activate(nextIdx).then(() => {
+    manager.activate(targetIdx).then(() => {
       if (!navigating) updateUI()
     })
 
-    // Fly camera to the next slot; re-enable nav when done
-    carouselCamera.flyTo(nextIdx, () => {
+    carouselCamera.flyTo(targetIdx, () => {
       navigating = false
-      btnPrev.disabled = false
-      btnNext.disabled = false
+      setNavDisabled(false)
       updateUI()
     })
   }
 
-  btnPrev.addEventListener('click', () => navigate(-1))
-  btnNext.addEventListener('click', () => navigate(+1))
+  function setNavDisabled(disabled) {
+    btnPrev.disabled = disabled
+    btnNext.disabled = disabled
+    dots.forEach(d => { d.disabled = disabled })
+  }
+
+  btnPrev.addEventListener('click', () => {
+    const next = ((manager.activeIndex - 1) % manager.N + manager.N) % manager.N
+    navigateTo(next)
+  })
+  btnNext.addEventListener('click', () => {
+    const next = (manager.activeIndex + 1) % manager.N
+    navigateTo(next)
+  })
 
   updateUI()
 
-  return { updateUI }
+  function resetActiveToStatic() {
+    const ex = manager.getActive()
+    if (ex) {
+      resetToStatic(ex)
+      updateUI()
+    }
+  }
+
+  return { updateUI, resetActiveToStatic }
 }
 
 function animateLightIntensity(light, target, durationMs) {

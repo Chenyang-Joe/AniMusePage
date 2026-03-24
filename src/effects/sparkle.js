@@ -105,11 +105,9 @@ export class SparkleEffect {
   }
 
   _emitBurst(center) {
-    // Small golden layer
-    this._addLayer(center, { count: 7,  color: 0xffd060, size: 0.20, duration: 1.6 })
-    // Occasional white accents
+    this._addLayer(center, { count: 7,  color: 0xffffff, size: 0.18, duration: 1.6 })
     if (Math.random() < 0.6) {
-      this._addLayer(center, { count: 4, color: 0xffffff, size: 0.09, duration: 1.2 })
+      this._addLayer(center, { count: 4, color: 0xe8e4e0, size: 0.08, duration: 1.2 })
     }
   }
 

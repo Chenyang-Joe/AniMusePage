@@ -1,8 +1,10 @@
 # AniMusePage — Technical Notes
 
-## Current Status (as of 2026-03-23)
+## Current Status (as of 2026-03-24)
 
-Steps 1–8 complete and deployed. Live URL: **https://chenyang-joe.github.io/AniMusePage/**
+Multi-exhibit carousel (14 animals) with camera fly-to system. See `docs/PROGRESS.md` for full details.
+
+Live URL: **https://chenyang-joe.github.io/AniMusePage/**
 
 ---
 
@@ -68,10 +70,12 @@ predModel.position.y = initialOffsetY - (frameLocalMinY - baseLocalMinY) * floor
 ### Key Parameters (computed by `computePedestalTransform` in `loader.js`)
 
 ```
-initialOffsetY = 1.6 - wMinY × scale          // base-pose world floor = 1.6
+initialOffsetY = 1.6 - sMinY × scale          // base-pose floor in parent-local space = 1.6
 baseLocalMinY  = min Y of base pose in mesh local space
-floorScaleY    = 1.8 / localSizeY             // = childScaleY × sharedScale
+floorScaleY    = scale × parentSizeY / localSizeY
 ```
+
+Note: bounding box is computed in **parent-local space** (not world space) and includes the display rotation (`MODEL_ROTATION_Y = -15°`). See `docs/PROGRESS.md` for details on coordinate space fixes.
 
 Mathematically guaranteed: `world_floor_Y = 1.6` for every frame, regardless of morph state.
 
@@ -109,11 +113,7 @@ Use `action.time` (wraps within clip duration under `LoopRepeat`), not `mixer.ti
 
 ## Nameplate
 
-Text is rendered to a Canvas and applied as a texture to the brass plate mesh:
-- Species name: parsed from GT filename (`{Animal_Name}__` prefix)
-- Action name: hardcoded as `'Exploring in the Grass'`
-
-See `src/scene/museum.js → setPlateLabel(plateMat, animal, action)`.
+Removed — pedestal is now minimal without nameplate. `setPlateLabel()` still exists in museum.js but is unused.
 
 ---
 

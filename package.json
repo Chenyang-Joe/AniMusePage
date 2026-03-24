@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "gh-pages": "^6.3.0",
+    "js-yaml": "^4.1.1",
     "three": "^0.183.2",
     "vite": "^8.0.1"
   },
