@@ -43,8 +43,8 @@ export function buildPedestal() {
 // ── Museum ─────────────────────────────────────────────────────────────────
 export function buildMuseum(scene) {
   // ── Background & Fog ───────────────────────────────────────────────────
-  scene.background = new THREE.Color(0xe0dcd6)
-  scene.fog = new THREE.FogExp2(0xe0dcd6, 0.012)
+  scene.background = new THREE.Color(0xe2e0de)
+  scene.fog = new THREE.FogExp2(0xe2e0de, 0.012)
 
   // ── Floor ─────────────────────────────────────────────────────────────
   const floorMat = new THREE.MeshStandardMaterial({
