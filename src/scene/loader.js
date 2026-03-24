@@ -78,7 +78,7 @@ function loadOne(loader, url, onProgress) {
 // Step 1: compute scale + offset by iterating base-pose vertices in world space.
 // Box3.setFromObject is NOT used here: Three.js expands the bounding box by ALL morph targets
 // regardless of current weights, giving the worst-case inflated box — not the base pose bounds.
-function computePedestalTransform(model) {
+function computePedestalTransform(model, floorY = 1.6) {
   model.position.set(0, 0, 0)
   model.scale.set(1, 1, 1)
   model.updateMatrixWorld(true)
@@ -112,15 +112,14 @@ function computePedestalTransform(model) {
   const scale       = 1.8 / worldSizeY
   const offset      = new THREE.Vector3(
     -((wMinX + wMaxX) / 2) * scale,
-    1.6 - wMinY * scale,
+    floorY - wMinY * scale,
     -((wMinZ + wMaxZ) / 2) * scale,
   )
   // floorScaleY = child_scale_Y * scale = (worldSizeY/localSizeY) * (1.8/worldSizeY) = 1.8/localSizeY
   const floorScaleY  = 1.8 / localSizeY
   const initialOffsetY = offset.y
 
-  console.log(`[pedestal] worldSizeY=${worldSizeY.toFixed(3)} scale=${scale.toFixed(3)} wMinY=${wMinY.toFixed(4)} lMinY=${lMinY.toFixed(4)} floorScaleY=${floorScaleY.toFixed(4)}`)
-  console.log(`  → script expected: lMinY≈0.4144 floorScaleY≈3.0735`)
+  console.log(`[pedestal] floorY=${floorY.toFixed(3)} worldSizeY=${worldSizeY.toFixed(3)} scale=${scale.toFixed(3)} wMinY=${wMinY.toFixed(4)} lMinY=${lMinY.toFixed(4)} floorScaleY=${floorScaleY.toFixed(4)}`)
   return { scale, offset, predMeshNode, baseLocalMinY: lMinY, floorScaleY, initialOffsetY }
 }
 
@@ -193,7 +192,7 @@ async function ensureDecoder() {
   _decoderReady = true
 }
 
-export async function loadExhibit(index, slotGroup, onProgress) {
+export async function loadExhibit(index, slotGroup, floorY = 1.6, onProgress) {
   await ensureDecoder()
 
   const dir = `${BASE}models/exhibits/${index}`
@@ -207,7 +206,7 @@ export async function loadExhibit(index, slotGroup, onProgress) {
   const predModel = predGltf.scene
   applyMeshMaterial(predModel)
   const { scale: sharedScale, offset: sharedOffset,
-          predMeshNode, baseLocalMinY, floorScaleY, initialOffsetY } = computePedestalTransform(predModel)
+          predMeshNode, baseLocalMinY, floorScaleY, initialOffsetY } = computePedestalTransform(predModel, floorY)
   applyPedestalTransform(predModel, sharedScale, sharedOffset)
   predModel.visible = true
   slotGroup.add(predModel)
@@ -239,12 +238,12 @@ export async function loadExhibit(index, slotGroup, onProgress) {
 
   Debug.log('loader',
     `exhibit ${index} loaded | morphTargets=${countMorphTargets(predModel)}` +
-    ` baseLocalMinY=${baseLocalMinY.toFixed(4)} floorScaleY=${floorScaleY.toFixed(4)} initialOffsetY=${initialOffsetY.toFixed(4)}`)
+    ` floorY=${floorY.toFixed(3)} baseLocalMinY=${baseLocalMinY.toFixed(4)} floorScaleY=${floorScaleY.toFixed(4)} initialOffsetY=${initialOffsetY.toFixed(4)}`)
 
   return {
     predModel, predMixer, predAction,
     bonesModel, bonesMixer, bonesAction,
     predMeshNode, baseLocalMinY, floorScaleY, initialOffsetY,
-    sharedScale,
+    sharedScale, floorY,
   }
 }

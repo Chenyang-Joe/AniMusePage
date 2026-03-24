@@ -1,11 +1,16 @@
+import * as THREE from 'three'
 import { Debug } from '../utils/debug.js'
 
-// Light intensities for static vs alive states.
-// Static = well-lit but not dramatic; Alive = spotlight drama.
-const STATIC_LIGHTS = { spotKey: 2.0, spotRim: 0.8, pointFill: 0.6, ambientLight: 0.25 }
-const ALIVE_LIGHTS  = { spotKey: 3.5, spotRim: 1.2, pointFill: 1.0, ambientLight: 0.35 }
+// Light intensities for static vs alive states
+const STATIC_LIGHTS = { spotKey: 2.5, spotRim: 0.8, pointFill: 0.6, ambientLight: 0.5 }
+const ALIVE_LIGHTS  = { spotKey: 4.0, spotRim: 1.2, pointFill: 1.0, ambientLight: 0.6 }
 
-export function setupControls({ lights, bloom, manager, carousel, onAlive, onResetBloom }) {
+export function setupControls({
+  camera, renderer,
+  lights, bloom,
+  manager, gallery, cameraController,
+  onAlive, onResetBloom,
+}) {
   const btnLife    = document.getElementById('btn-life')
   const btnPrev    = document.getElementById('btn-prev')
   const btnNext    = document.getElementById('btn-next')
@@ -14,7 +19,19 @@ export function setupControls({ lights, bloom, manager, carousel, onAlive, onRes
   const btnBones   = document.getElementById('btn-bones')
   const flash      = document.getElementById('flash')
 
-  let navigating = false
+  const raycaster = new THREE.Raycaster()
+  const _mouse    = new THREE.Vector2()
+  let navigating  = false
+  const N         = manager.N
+
+  // ── Move spotlights to follow a slot ───────────────────────────────────
+  function moveSpotlights(pos, topY) {
+    lights.spotKey.position.set(pos.x + 2, topY + 7, pos.z + 3)
+    lights.spotKey.target.position.set(pos.x, topY + 0.6, pos.z)
+    lights.spotRim.position.set(pos.x - 3, topY + 5, pos.z - 4)
+    lights.spotRim.target.position.set(pos.x, topY + 0.6, pos.z)
+    lights.pointFill.position.set(pos.x - 3, topY + 3, pos.z + 2)
+  }
 
   // ── UI sync ────────────────────────────────────────────────────────────
   function updateUI() {
@@ -48,7 +65,7 @@ export function setupControls({ lights, bloom, manager, carousel, onAlive, onRes
 
     if (onAlive) onAlive()
 
-    // Subtle warm amber shimmer — much gentler than white flash
+    // Subtle warm amber shimmer
     flash.style.backgroundColor = 'rgba(255, 180, 50, 1)'
     flash.style.transition = 'opacity 0.15s ease-in'
     flash.style.opacity = '0.25'
@@ -69,7 +86,7 @@ export function setupControls({ lights, bloom, manager, carousel, onAlive, onRes
     if (ex.predAction) { ex.predAction.reset(); ex.predAction.play() }
     if (ex.bonesAction) { ex.bonesAction.reset(); ex.bonesAction.play() }
 
-    // Brighten lights from static → alive
+    // Brighten lights
     animateLightIntensity(lights.spotKey,     ALIVE_LIGHTS.spotKey,     1200)
     animateLightIntensity(lights.spotRim,     ALIVE_LIGHTS.spotRim,     1200)
     animateLightIntensity(lights.pointFill,   ALIVE_LIGHTS.pointFill,   1200)
@@ -106,15 +123,14 @@ export function setupControls({ lights, bloom, manager, carousel, onAlive, onRes
   })
 
   // ── Navigation ─────────────────────────────────────────────────────────
-  function navigate(direction) {
+  function navigate(nextIdx) {
     if (navigating) return
     navigating = true
 
     const prevIdx = manager.activeIndex
-    const N       = manager.N
-    const nextIdx = ((prevIdx + direction) % N + N) % N
+    if (prevIdx === nextIdx) { navigating = false; return }
 
-    // Reset previous exhibit to static state
+    // Reset previous exhibit
     const prevEx = manager.exhibits[prevIdx]
     if (prevEx.alive) {
       prevEx.predAction?.stop()
@@ -125,25 +141,26 @@ export function setupControls({ lights, bloom, manager, carousel, onAlive, onRes
     if (prevEx.bonesModel) prevEx.bonesModel.visible = false
     prevEx.showingBones = false
 
-    // Reset bloom/composer back to plain renderer
     if (onResetBloom) onResetBloom()
 
-    // Restore static lighting immediately
+    // Restore static lighting
     animateLightIntensity(lights.spotKey,     STATIC_LIGHTS.spotKey,     600)
     animateLightIntensity(lights.spotRim,     STATIC_LIGHTS.spotRim,     600)
     animateLightIntensity(lights.pointFill,   STATIC_LIGHTS.pointFill,   600)
     animateLightIntensity(lights.ambientLight, STATIC_LIGHTS.ambientLight, 600)
 
-    Debug.log('controls',
-      `navigate ${direction > 0 ? 'right' : 'left'} | prev=${prevIdx} → next=${nextIdx}`)
+    // Move spotlights to new exhibit immediately
+    const slot = gallery.slots[nextIdx]
+    moveSpotlights(slot.position, slot.pedestalTopY)
 
-    updateUI()
+    Debug.log('controls', `navigate ${prevIdx} → ${nextIdx}`)
+
     btnPrev.disabled = true
     btnNext.disabled = true
+    updateUI()
 
-    // Activate AFTER tween completes so computePedestalTransform
-    // runs with the slot at world origin
-    carousel.rotateTo(nextIdx, () => {
+    // Fly camera; activate when arrived
+    cameraController.flyTo(nextIdx, () => {
       navigating = false
       btnPrev.disabled = false
       btnNext.disabled = false
@@ -151,11 +168,27 @@ export function setupControls({ lights, bloom, manager, carousel, onAlive, onRes
     })
   }
 
-  btnPrev.addEventListener('click', () => navigate(-1))
-  btnNext.addEventListener('click', () => navigate(+1))
+  btnPrev.addEventListener('click', () => navigate(((manager.activeIndex - 1) % N + N) % N))
+  btnNext.addEventListener('click', () => navigate((manager.activeIndex + 1) % N))
+
+  // ── Click-to-select on pedestal hit boxes ─────────────────────────────
+  renderer.domElement.addEventListener('click', event => {
+    if (navigating) return
+    _mouse.x =  (event.clientX / window.innerWidth)  * 2 - 1
+    _mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
+    raycaster.setFromCamera(_mouse, camera)
+    const hits = raycaster.intersectObjects(gallery.hitObjects, false)
+    if (hits.length > 0) {
+      const idx = hits[0].object.userData.slotIndex
+      if (idx !== undefined && idx !== manager.activeIndex) navigate(idx)
+    }
+  })
+
+  // ── Initialize spotlights for slot 0 ──────────────────────────────────
+  const s0 = gallery.slots[0]
+  moveSpotlights(s0.position, s0.pedestalTopY)
 
   updateUI()
-
   return { updateUI }
 }
 

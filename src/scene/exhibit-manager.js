@@ -75,7 +75,8 @@ export class ExhibitManager {
     ex.status = 'loading'
 
     try {
-      const result = await loadExhibit(index, this.slots[index].group)
+      const floorY = this.slots[index].pedestalTopY ?? 1.6
+      const result = await loadExhibit(index, this.slots[index].group, floorY)
       Object.assign(ex, result, {
         status: 'loaded',
         alive:  false,
@@ -154,7 +155,7 @@ export class ExhibitManager {
     }
 
     const { predModel, bonesModel, predMeshNode,
-            baseLocalMinY, floorScaleY, initialOffsetY, _bonesBox } = ex
+            baseLocalMinY, floorScaleY, initialOffsetY, floorY, _bonesBox } = ex
 
     const _predPos      = predMeshNode.geometry.attributes.position
     const _predMorphPos = predMeshNode.geometry.morphAttributes.position
@@ -178,7 +179,7 @@ export class ExhibitManager {
     function updateBonesFloor() {
       bonesModel.position.y = 0
       _bonesBox.setFromObject(bonesModel)
-      bonesModel.position.y = 1.6 - _bonesBox.min.y
+      bonesModel.position.y = (floorY ?? 1.6) - _bonesBox.min.y
     }
 
     this._floorTracker = { updatePredFloor, updateBonesFloor }
