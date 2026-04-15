@@ -13,8 +13,8 @@ import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer'
 import { meshopt }       from '@gltf-transform/functions'
 import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 
-const PRED_DIR  = 'data/selected/viz/pred'
-const BONES_DIR = 'data/selected/viz/bones'
+const PRED_DIR  = 'data/selected2/pred'
+const BONES_DIR = 'data/selected2/bones'
 const OUT_BASE  = 'public/models/exhibits'
 
 await MeshoptDecoder.ready
@@ -45,12 +45,14 @@ for (let idx = 0; idx < N; idx++) {
   const bonesFile = bonesFiles[idx]
 
   // Parse animal + action from filename
-  // Pattern: {Animal_Name}__{animal_name}__{...}_{animal_name}_{action}_pred.glb
-  const basename    = predFile.replace(/_pred\.glb$/, '')
-  const animal      = basename.split('__')[0].replace(/_/g, ' ')  // "Aardvark Female"
-  const animalSnake = animal.toLowerCase().replace(/ /g, '_')
-  const actionMatch = basename.match(new RegExp(`${animalSnake}_([a-z0-9]+)$`, 'i'))
-  const action      = actionMatch ? actionMatch[1] : 'unknown'
+  // Pattern: {animalCODE}__{animalCODE}_{Action}_pred.glb
+  // e.g. "bucksYJL__bucksYJL_Attack4_pred.glb"
+  const basename   = predFile.replace(/_pred\.glb$/, '')
+  const parts      = basename.split('__')
+  const animalCode = parts[0]                                       // "bucksYJL"
+  const animalLower = (animalCode.match(/^[a-z]+/) || [animalCode])[0]  // "bucks"
+  const animal     = animalLower.charAt(0).toUpperCase() + animalLower.slice(1)  // "Bucks"
+  const action     = parts[1] ? parts[1].slice(animalCode.length + 1) : 'unknown' // "Attack4"
 
   const outDir = `${OUT_BASE}/${idx}`
   mkdirSync(outDir, { recursive: true })

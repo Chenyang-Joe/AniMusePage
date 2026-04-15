@@ -1,0 +1,100 @@
+[
+  {
+    "index": 0,
+    "animal": "Bucks",
+    "action": "Attack4",
+    "predFile": "0/pred.glb",
+    "bonesFile": "0/bones.glb"
+  },
+  {
+    "index": 1,
+    "animal": "Canie",
+    "action": "Attacks3",
+    "predFile": "1/pred.glb",
+    "bonesFile": "1/bones.glb"
+  },
+  {
+    "index": 2,
+    "animal": "Cattle",
+    "action": "SwimBL",
+    "predFile": "2/pred.glb",
+    "bonesFile": "2/bones.glb"
+  },
+  {
+    "index": 3,
+    "animal": "Deer",
+    "action": "AttackRunRM",
+    "predFile": "3/pred.glb",
+    "bonesFile": "3/bones.glb"
+  },
+  {
+    "index": 4,
+    "animal": "Elephant",
+    "action": "act3",
+    "predFile": "4/pred.glb",
+    "bonesFile": "4/bones.glb"
+  },
+  {
+    "index": 5,
+    "animal": "Elk",
+    "action": "Attack4",
+    "predFile": "5/pred.glb",
+    "bonesFile": "5/bones.glb"
+  },
+  {
+    "index": 6,
+    "animal": "Fox",
+    "action": "runforwardRM",
+    "predFile": "6/pred.glb",
+    "bonesFile": "6/bones.glb"
+  },
+  {
+    "index": 7,
+    "animal": "Goat",
+    "action": "angry11",
+    "predFile": "7/pred.glb",
+    "bonesFile": "7/bones.glb"
+  },
+  {
+    "index": 8,
+    "animal": "Grizz",
+    "action": "Attack5",
+    "predFile": "8/pred.glb",
+    "bonesFile": "8/bones.glb"
+  },
+  {
+    "index": 9,
+    "animal": "Huskydog",
+    "action": "Trot2",
+    "predFile": "9/pred.glb",
+    "bonesFile": "9/bones.glb"
+  },
+  {
+    "index": 10,
+    "animal": "Leopard",
+    "action": "roam",
+    "predFile": "10/pred.glb",
+    "bonesFile": "10/bones.glb"
+  },
+  {
+    "index": 11,
+    "animal": "Rabbit",
+    "action": "WalkBackLRM",
+    "predFile": "11/pred.glb",
+    "bonesFile": "11/bones.glb"
+  },
+  {
+    "index": 12,
+    "animal": "Raccoon",
+    "action": "Swim2",
+    "predFile": "12/pred.glb",
+    "bonesFile": "12/bones.glb"
+  },
+  {
+    "index": 13,
+    "animal": "Tiger",
+    "action": "Actions5",
+    "predFile": "13/pred.glb",
+    "bonesFile": "13/bones.glb"
+  }
+]
