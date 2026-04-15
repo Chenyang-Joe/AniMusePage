@@ -29,12 +29,17 @@ export class ExhibitManager {
     this._floorTracker  = null // cached for current active exhibit
   }
 
-  // Load all exhibits upfront
+  // Load all exhibits in parallel
   async loadAll(onProgress) {
-    for (let i = 0; i < this.N; i++) {
-      await this._loadOne(i)
-      if (onProgress) onProgress(i, this.N)
-    }
+    let done = 0
+    await Promise.all(
+      Array.from({ length: this.N }, (_, i) =>
+        this._loadOne(i).then(() => {
+          done++
+          if (onProgress) onProgress(done, this.N)
+        })
+      )
+    )
     Debug.log('manager', `all ${this.N} exhibits loaded`)
   }
 

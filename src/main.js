@@ -68,10 +68,28 @@ fetch(`${BASE}models/exhibits/exhibits.yaml`)
   .then(async manifest => {
     const manager = new ExhibitManager(slots, manifest)
 
-    await manager.loadAll((i, total) => {
-      loadingBar.style.width = `${10 + 90 * (i + 1) / total}%`
-    })
+    // Progressive loading: wait for first 3 exhibits, load rest in background
+    const MIN_LOAD = 3
     manager.activeIndex = 0
+    let firstDone = 0
+    const allPromises = Array.from({ length: manager.N }, (_, i) =>
+      manager._loadOne(i).then(() => {
+        if (firstDone < MIN_LOAD) {
+          firstDone++
+          loadingBar.style.width = `${10 + 90 * firstDone / MIN_LOAD}%`
+        }
+      })
+    )
+    // Wait for the first MIN_LOAD to finish (whichever they are)
+    await new Promise(resolve => {
+      let count = 0
+      allPromises.forEach(p => p.then(() => {
+        count++
+        if (count >= MIN_LOAD) resolve()
+      }))
+    })
+    // Rest continue in background
+    Promise.all(allPromises).catch(err => console.error('[bg-load]', err))
 
     // Pre-warm the composer so its GPU buffers are initialized before first use.
     // Without this, the first composer.render() call has uninitialized bloom buffers
