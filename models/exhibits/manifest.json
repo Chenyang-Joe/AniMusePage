@@ -1,99 +1,99 @@
 [
   {
     "index": 0,
-    "animal": "Arctic Wolf Female",
-    "action": "swimturnr000",
+    "animal": "Bucks",
+    "action": "Attack4",
     "predFile": "0/pred.glb",
     "bonesFile": "0/bones.glb"
   },
   {
     "index": 1,
-    "animal": "Bactrian Camel Juvenile",
-    "action": "walktorun",
+    "animal": "Canie",
+    "action": "Attacks3",
     "predFile": "1/pred.glb",
     "bonesFile": "1/bones.glb"
   },
   {
     "index": 2,
-    "animal": "Bairds Tapir Female",
-    "action": "fighttaunt",
+    "animal": "Cattle",
+    "action": "SwimBL",
     "predFile": "2/pred.glb",
     "bonesFile": "2/bones.glb"
   },
   {
     "index": 3,
-    "animal": "Blackbuck Female",
-    "action": "shake",
+    "animal": "Deer",
+    "action": "AttackRunRM",
     "predFile": "3/pred.glb",
     "bonesFile": "3/bones.glb"
   },
   {
     "index": 4,
-    "animal": "Bush Dog Female",
-    "action": "runbaseonspot",
+    "animal": "Elephant",
+    "action": "act3",
     "predFile": "4/pred.glb",
     "bonesFile": "4/bones.glb"
   },
   {
     "index": 5,
-    "animal": "Gharial Juvenile",
-    "action": "standtowalk",
+    "animal": "Elk",
+    "action": "Attack4",
     "predFile": "5/pred.glb",
     "bonesFile": "5/bones.glb"
   },
   {
     "index": 6,
-    "animal": "Gray Wolf Female",
-    "action": "runbase",
+    "animal": "Fox",
+    "action": "runforwardRM",
     "predFile": "6/pred.glb",
     "bonesFile": "6/bones.glb"
   },
   {
     "index": 7,
-    "animal": "Hill Radnor Sheep Juvenile",
-    "action": "drinktostand",
+    "animal": "Goat",
+    "action": "angry11",
     "predFile": "7/pred.glb",
     "bonesFile": "7/bones.glb"
   },
   {
     "index": 8,
-    "animal": "Japanese Raccoon Dog Male",
-    "action": "deepswim03",
+    "animal": "Grizz",
+    "action": "Attack5",
     "predFile": "8/pred.glb",
     "bonesFile": "8/bones.glb"
   },
   {
     "index": 9,
-    "animal": "Little Penguin Juvenile",
-    "action": "interactadultb",
+    "animal": "Huskydog",
+    "action": "Trot2",
     "predFile": "9/pred.glb",
     "bonesFile": "9/bones.glb"
   },
   {
     "index": 10,
-    "animal": "Quokka Female",
-    "action": "eatloop01",
+    "animal": "Leopard",
+    "action": "roam",
     "predFile": "10/pred.glb",
     "bonesFile": "10/bones.glb"
   },
   {
     "index": 11,
-    "animal": "Red Ruffed Lemur Female",
-    "action": "climbjumpout",
+    "animal": "Rabbit",
+    "action": "WalkBackLRM",
     "predFile": "11/pred.glb",
     "bonesFile": "11/bones.glb"
   },
   {
     "index": 12,
-    "animal": "Rednecked Wallaby Juvenile",
-    "action": "standtowalk",
+    "animal": "Raccoon",
+    "action": "Swim2",
     "predFile": "12/pred.glb",
     "bonesFile": "12/bones.glb"
   },
   {
     "index": 13,
-    "animal": "Standard Donkey Juvenile",
-    "action": "fighttaunt",
+    "animal": "Tiger",
+    "action": "Actions5",
     "predFile": "13/pred.glb",
     "bonesFile": "13/bones.glb"
   }
