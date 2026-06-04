@@ -266,6 +266,43 @@
       cursor: default;
     }
 
+    /* ── Video page (second page) ────────────────────────────── */
+    #video-page {
+      position: fixed;
+      inset: 0;
+      z-index: 15;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 26px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.6s ease;
+    }
+    #video-page h2 {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-size: 46px;
+      font-weight: 300;
+      font-style: italic;
+      color: #000;
+    }
+    .video-frame {
+      width: min(880px, 86vw);
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border: 1px solid rgba(0, 0, 0, 0.18);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .video-frame iframe {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
     /* ── Abstract page (third page) ──────────────────────────── */
     #abstract-page {
       position: fixed;
@@ -453,6 +490,10 @@
       .landing-links a { padding: 9px 18px; font-size: 12px; }
       .scroll-hint { font-size: 12px; bottom: 20px; }
 
+      /* Video page */
+      #video-page h2 { font-size: 30px; }
+      .video-frame { width: 92vw; }
+
       /* Abstract page */
       .abstract-content { padding: 6vh 24px 60px; }
       .abstract-content h2 { font-size: 24px; }
@@ -462,7 +503,7 @@
       .abstract-content .btn-close-abstract { padding: 10px 22px; font-size: 11px; }
     }
   </style>
-  <script type="module" crossorigin src="/AniMusePage/assets/index-CudS8JrI.js"></script>
+  <script type="module" crossorigin src="/AniMusePage/assets/index-Bs9SUvIL.js"></script>
 </head>
 <body>
   <div id="loading">
@@ -478,15 +519,27 @@
       <h1>Night at the Museum</h1>
       <p class="subtitle">A Scalable Framework for Text-Driven Mesh Motion Generation</p>
       <p class="authors">
-        Chenyang Xu, Haoran Li, Zeyu Jiang, Guangzhao He, Shichen Zhang,<br>
+        Chenyang Xu, Haoran Li, Guangzhao He, Zeyu Jiang, Shichen Zhang,<br>
         Juexiao Zhang, Sihang Li, Chen Feng, Jing Zhang<br>
         <span style="font-size:13px;color:rgba(0,0,0,0.5);font-style:italic;">(tentative)</span><br>
-        <span style="font-size:14px;color:rgba(0,0,0,0.6);letter-spacing:1px;">2026 &middot; In Submission</span>
+        <span style="font-size:14px;color:rgba(0,0,0,0.6);letter-spacing:1px;">2026 &middot; Under Review</span>
       </p>
       <div class="landing-links">
         <a>Code (Coming Soon)</a>
         <a>arXiv (Coming Soon)</a>
       </div>
+    </div>
+    <div class="scroll-hint">&darr; Scroll to Watch Demo Video</div>
+  </div>
+
+  <div id="video-page">
+    <h2>Demo Video</h2>
+    <div class="video-frame">
+      <iframe id="yt-player"
+        src="https://www.youtube.com/embed/UVx4sUNARUM?enablejsapi=1&amp;rel=0"
+        title="AniMuse Demo Video"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowfullscreen></iframe>
     </div>
     <div class="scroll-hint">&darr; Scroll to Enter Museum</div>
   </div>
@@ -494,7 +547,7 @@
   <div id="abstract-page">
     <div class="abstract-content">
       <h2>Abstract</h2>
-      <p>Animating static meshes into realistic motion conditioned on text prompts remains a fundamental yet challenging problem. Existing skeleton-based approaches suffer from limited semantic expressiveness, skinning artifacts, and manual effort for data curation, which restrict scalability. To address these limitations, we propose AniMuse, a semantic-aware and scalable framework for text-driven mesh motion generation. We introduce AniMuse Gaussian Nodes, a novel rigging representation that unifies geometric control with semantic information by combining learnable Gaussian control nodes with visual semantic features, without requiring predefined skeletons or manual annotation. This representation enables high-fidelity, semantically consistent deformation while naturally aligning with text semantics. Building on this representation, we develop a semantic-aware diffusion model that generates SE(3) trajectories for each control node. Since our pipeline assumes no fixed skeleton topology or category-specific prior, it naturally generalizes across mesh categories. We demonstrate its effectiveness on animal motion generation and further curate MuseumAnimal, a large-scale animal mesh motion dataset, to validate the scalability of our skeleton-free paradigm. Comprehensive experiments show that AniMuse achieves superior performance in both in-domain and out-of-domain benchmarks.</p>
+      <p>We introduce AniMuse, a two-stage framework for text-driven animal mesh animation directly from raw meshes, without predefined skeletons, joint names, or manual rigging. At its core are <em>Semantic Gaussian Bones</em> (SGBs), a compact skeleton-free deformation representation decoded from a globally shared learnable query book and trained through explicit linear blend skinning with topology-aware mask-gated weights. The shared query book yields stable cross-instance bone slots, providing a mesh-native control space for text-conditioned generation and SGB-slot motion inpainting. A DiT-based diffusion model generates per-bone SE(3) trajectories from text and geometric bone latents, while allowing users to clamp selected SGB slots and inpaint the remaining full-body motion. On DeformingThings4D, our rig reduces bidirectional CD-L1 by 39% over the best neural skeleton baseline, and a forward-only variant achieves the lowest CD-L2 overall. On the out-of-domain AnimalML3D benchmark, AniMuse improves overall motion quality over skeleton-based and vertex-based baselines.</p>
       <div class="ack">
         <h2>Acknowledgements</h2>
         <p>Demo data is extracted from Planet Zoo using code provided by Animo. Visual design references: Ruinart Unconventional Gallery, UNESCO Virtual Museum, Microsoft &times; NHM Visions of Nature.</p>
