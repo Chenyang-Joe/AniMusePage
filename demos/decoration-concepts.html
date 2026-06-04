@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Decoration Concepts — AniMusePage</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a1a; font-family: 'Segoe UI', system-ui, sans-serif; color: #fff; overflow: hidden; }
+  canvas { display: block; }
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: 16px 24px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
+    pointer-events: none; z-index: 10;
+  }
+  #hud h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.5px; opacity: 0.9; }
+  #hud p  { font-size: 12px; opacity: 0.5; margin-top: 4px; }
+  #controls {
+    position: fixed; top: 16px; right: 24px; z-index: 20;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  #controls label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; cursor: pointer; opacity: 0.85;
+    background: rgba(0,0,0,0.5); padding: 6px 12px; border-radius: 6px;
+    backdrop-filter: blur(8px); user-select: none;
+  }
+  #controls label:hover { opacity: 1; background: rgba(255,255,255,0.1); }
+  #controls input { accent-color: #88bbff; }
+  .tag {
+    display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 3px;
+    margin-left: 4px; vertical-align: middle;
+  }
+  .floor { background: #5a8a3a44; color: #8fc87a; }
+  .wall  { background: #6a7aaa44; color: #8a9acc; }
+  .ceil  { background: #aa8a5a44; color: #ccaa7a; }
+  .light { background: #aa5a7a44; color: #cc8a9a; }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <h1>Decoration Concepts</h1>
+  <p>Toggle each decoration on/off to compare. Orbit: drag &middot; Zoom: scroll</p>
+</div>
+
+<div id="controls">
+  <label><input type="checkbox" id="chkSpotCircles" checked>
+    Spotlight Circles <span class="tag floor">floor</span></label>
+  <label><input type="checkbox" id="chkWainscoting" checked>
+    Wainscoting + Molding <span class="tag wall">wall</span></label>
+  <label><input type="checkbox" id="chkPilasters" checked>
+    Pilasters <span class="tag wall">wall</span></label>
+<label><input type="checkbox" id="chkCoffered" checked>
+    Coffered Ceiling <span class="tag ceil">ceil</span></label>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.183.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.183.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+
+// ─── Renderer ────────────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: true })
+renderer.setSize(innerWidth, innerHeight)
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+renderer.shadowMap.enabled = true
+renderer.shadowMap.type = THREE.PCFSoftShadowMap
+renderer.toneMapping = THREE.ACESFilmicToneMapping
+renderer.toneMappingExposure = 1.0
+document.body.appendChild(renderer.domElement)
+
+// ─── Scene (matching museum.js bright gallery) ──────────────────────────────
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(0xe0dcd6)
+scene.fog = new THREE.FogExp2(0xe0dcd6, 0.012)
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 120)
+camera.position.set(0, 6, 8)
+
+const orbit = new OrbitControls(camera, renderer.domElement)
+orbit.target.set(0, 3, 12)
+orbit.enableDamping = true
+orbit.dampingFactor = 0.06
+orbit.update()
+
+// ─── Museum base (from museum.js) ───────────────────────────────────────────
+const CX = 0, CZ = 12
+
+// Floor
+const floorMat = new THREE.MeshStandardMaterial({ color: 0xd4d0c8, roughness: 0.4, metalness: 0.15 })
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), floorMat)
+floor.rotation.x = -Math.PI / 2
+floor.position.set(CX, 0, CZ)
+floor.receiveShadow = true
+scene.add(floor)
+
+// Octagonal walls
+const D = 38, S2 = Math.SQRT2
+const SIDE = Math.ceil(2 * D * Math.tan(Math.PI / 8))
+const wallMat = new THREE.MeshStandardMaterial({ color: 0xeae6e0, roughness: 0.85, metalness: 0 })
+
+const wallDefs = [
+  [0, -D, 0], [-D/S2, -D/S2, Math.PI/4], [-D, 0, Math.PI/2], [-D/S2, D/S2, 3*Math.PI/4],
+  [0, D, Math.PI], [D/S2, D/S2, -3*Math.PI/4], [D, 0, -Math.PI/2], [D/S2, -D/S2, -Math.PI/4],
+]
+for (const [dx, dz, ry] of wallDefs) {
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(SIDE, 14), wallMat)
+  wall.position.set(CX + dx, 7, CZ + dz)
+  wall.rotation.y = ry
+  wall.receiveShadow = true
+  scene.add(wall)
+}
+
+// Ceiling
+const ceil = new THREE.Mesh(
+  new THREE.PlaneGeometry(100, 100),
+  new THREE.MeshStandardMaterial({ color: 0xf0ece7, roughness: 1, metalness: 0 })
+)
+ceil.rotation.x = Math.PI / 2
+ceil.position.set(CX, 10, CZ)
+scene.add(ceil)
+
+// Lights
+scene.add(new THREE.AmbientLight(0xffffff, 0.7))
+scene.add(new THREE.HemisphereLight(0xf0f5ff, 0xe8e0d5, 0.6))
+for (const [x, y, z] of [
+  [-5,8.5,2],[5,8.5,2],[-5,8.5,9],[5,8.5,9],
+  [-5,8.5,16],[5,8.5,16],[-5,8.5,23],[5,8.5,23],
+]) {
+  const pl = new THREE.PointLight(0xfff8f0, 2.0, 22, 1)
+  pl.position.set(x, y, z)
+  scene.add(pl)
+}
+
+// ─── Carousel pedestals (simplified placeholders) ────────────────────────────
+const N = 14, R = 12
+const stoneMat = new THREE.MeshStandardMaterial({ color: 0xd0ccc4, roughness: 0.5, metalness: 0.05 })
+
+const carouselGroup = new THREE.Group()
+carouselGroup.position.set(CX, 0, CZ)
+scene.add(carouselGroup)
+
+for (let i = 0; i < N; i++) {
+  const angle = (i / N) * Math.PI * 2
+  const slotGroup = new THREE.Group()
+  slotGroup.position.set(R * Math.sin(angle), 0, -R * Math.cos(angle))
+  slotGroup.rotation.y = -angle
+
+  // Bezier lathe pedestal (matching new design)
+  const BOTTOM_R = 1.25, TOP_R = 1.15, DISC_H = 0.07
+  const BODY_BOT = DISC_H, BODY_TOP = 1.53
+  const curve = new THREE.CubicBezierCurve(
+    new THREE.Vector2(BOTTOM_R, BODY_BOT),
+    new THREE.Vector2(BOTTOM_R * 0.3, BODY_BOT + 0.15),
+    new THREE.Vector2(TOP_R * 0.35, BODY_TOP - 0.2),
+    new THREE.Vector2(TOP_R, BODY_TOP),
+  )
+  const pts = [
+    new THREE.Vector2(0, 0),
+    new THREE.Vector2(BOTTOM_R, 0),
+    new THREE.Vector2(BOTTOM_R, DISC_H),
+    ...curve.getPoints(40),
+    new THREE.Vector2(TOP_R, BODY_TOP + DISC_H),
+    new THREE.Vector2(0, BODY_TOP + DISC_H),
+  ]
+  const lathe = new THREE.Mesh(new THREE.LatheGeometry(pts, 64), stoneMat)
+  lathe.castShadow = true
+  lathe.receiveShadow = true
+  slotGroup.add(lathe)
+
+  // Dummy animal silhouette
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xd4cec8, roughness: 0.6 })
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.55, 8, 16), bodyMat)
+  body.rotation.z = Math.PI / 2
+  body.position.y = 2.22
+  body.castShadow = true
+  slotGroup.add(body)
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), bodyMat)
+  head.position.set(0.42, 2.38, 0)
+  slotGroup.add(head)
+
+  carouselGroup.add(slotGroup)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// DECORATION GROUPS — each toggleable
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─── 1. Spotlight Circles on floor ───────────────────────────────────────────
+const spotCirclesGroup = new THREE.Group()
+scene.add(spotCirclesGroup)
+
+for (let i = 0; i < N; i++) {
+  const angle = (i / N) * Math.PI * 2
+  const wx = CX + R * Math.sin(angle)
+  const wz = CZ - R * Math.cos(angle)
+
+  // Outer glow ring
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(1.3, 1.55, 64),
+    new THREE.MeshStandardMaterial({
+      color: 0xfff8e8, emissive: 0xfff0d0, emissiveIntensity: 0.3,
+      transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false,
+    })
+  )
+  ring.rotation.x = -Math.PI / 2
+  ring.position.set(wx, 0.005, wz)
+  spotCirclesGroup.add(ring)
+
+  // Inner subtle disc
+  const disc = new THREE.Mesh(
+    new THREE.CircleGeometry(1.3, 64),
+    new THREE.MeshStandardMaterial({
+      color: 0xede8df, roughness: 0.35, metalness: 0.1,
+      transparent: true, opacity: 0.25, depthWrite: false,
+    })
+  )
+  disc.rotation.x = -Math.PI / 2
+  disc.position.set(wx, 0.003, wz)
+  spotCirclesGroup.add(disc)
+}
+
+// ─── 2. Wainscoting + Molding ────────────────────────────────────────────────
+const wainscotGroup = new THREE.Group()
+scene.add(wainscotGroup)
+
+const wainscotMat = new THREE.MeshStandardMaterial({ color: 0xddd8d0, roughness: 0.7, metalness: 0.02 })
+const moldingMat = new THREE.MeshStandardMaterial({ color: 0xd0cbc2, roughness: 0.5, metalness: 0.08 })
+const panelMat = new THREE.MeshStandardMaterial({ color: 0xe2ded6, roughness: 0.75, metalness: 0.0 })
+
+const WAINSCOT_H = 3.2
+const MOLDING_H = 0.12
+const MOLDING_DEPTH = 0.15
+
+for (const [dx, dz, ry] of wallDefs) {
+  const wx = CX + dx, wz = CZ + dz
+
+  // Lower wainscot panel (slightly proud of wall)
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(SIDE - 2, WAINSCOT_H, 0.08), panelMat)
+  panel.position.set(wx + Math.sin(ry) * 0.05, WAINSCOT_H / 2, wz + Math.cos(ry) * 0.05)
+  panel.rotation.y = ry
+  panel.receiveShadow = true
+  wainscotGroup.add(panel)
+
+  // Horizontal molding strip (chair rail)
+  const molding = new THREE.Mesh(
+    new THREE.BoxGeometry(SIDE - 1, MOLDING_H, MOLDING_DEPTH),
+    moldingMat,
+  )
+  molding.position.set(
+    wx + Math.sin(ry) * 0.08,
+    WAINSCOT_H + MOLDING_H / 2,
+    wz + Math.cos(ry) * 0.08,
+  )
+  molding.rotation.y = ry
+  molding.castShadow = true
+  wainscotGroup.add(molding)
+
+  // Top molding (crown, near ceiling)
+  const crown = new THREE.Mesh(
+    new THREE.BoxGeometry(SIDE, 0.15, 0.18),
+    moldingMat,
+  )
+  crown.position.set(
+    wx + Math.sin(ry) * 0.1,
+    9.5,
+    wz + Math.cos(ry) * 0.1,
+  )
+  crown.rotation.y = ry
+  crown.castShadow = true
+  wainscotGroup.add(crown)
+
+  // Baseboard
+  const baseboard = new THREE.Mesh(
+    new THREE.BoxGeometry(SIDE, 0.2, 0.1),
+    moldingMat,
+  )
+  baseboard.position.set(
+    wx + Math.sin(ry) * 0.06,
+    0.1,
+    wz + Math.cos(ry) * 0.06,
+  )
+  baseboard.rotation.y = ry
+  wainscotGroup.add(baseboard)
+}
+
+// ─── 3. Pilasters ────────────────────────────────────────────────────────────
+const pilasterGroup = new THREE.Group()
+scene.add(pilasterGroup)
+
+const pilasterMat = new THREE.MeshStandardMaterial({ color: 0xd8d3ca, roughness: 0.55, metalness: 0.05 })
+const capitalMat = new THREE.MeshStandardMaterial({ color: 0xccc7be, roughness: 0.45, metalness: 0.08 })
+
+for (const [dx, dz, ry] of wallDefs) {
+  const wallCenterX = CX + dx, wallCenterZ = CZ + dz
+  // Normal pointing inward
+  const nx = -Math.sin(ry), nz = -Math.cos(ry)
+  // Tangent along wall
+  const tx = Math.cos(ry), tz = -Math.sin(ry)
+
+  // Place 3 pilasters per wall segment (at 1/4, 1/2, 3/4)
+  for (const frac of [-0.3, 0, 0.3]) {
+    const px = wallCenterX + tx * SIDE * frac + nx * 0.12
+    const pz = wallCenterZ + tz * SIDE * frac + nz * 0.12
+
+    // Shaft — half-cylinder (semicircle profile via LatheGeometry)
+    const shaftGeo = new THREE.CylinderGeometry(0.22, 0.22, 8.5, 16, 1, false, 0, Math.PI)
+    const shaft = new THREE.Mesh(shaftGeo, pilasterMat)
+    shaft.position.set(px, 4.5, pz)
+    shaft.rotation.y = ry + Math.PI
+    shaft.castShadow = true
+    shaft.receiveShadow = true
+    pilasterGroup.add(shaft)
+
+    // Capital (top decorative block)
+    const capGeo = new THREE.BoxGeometry(0.6, 0.35, 0.28)
+    const cap = new THREE.Mesh(capGeo, capitalMat)
+    cap.position.set(px + nx * 0.02, 9.0, pz + nz * 0.02)
+    cap.rotation.y = ry
+    cap.castShadow = true
+    pilasterGroup.add(cap)
+
+    // Base block
+    const baseGeo = new THREE.BoxGeometry(0.55, 0.25, 0.25)
+    const base = new THREE.Mesh(baseGeo, capitalMat)
+    base.position.set(px + nx * 0.01, 0.125, pz + nz * 0.01)
+    base.rotation.y = ry
+    pilasterGroup.add(base)
+  }
+}
+
+// ─── 4. Coffered Ceiling ─────────────────────────────────────────────────────
+const cofferedGroup = new THREE.Group()
+scene.add(cofferedGroup)
+
+const beamMat = new THREE.MeshStandardMaterial({ color: 0xe5e0d8, roughness: 0.6, metalness: 0.03 })
+const cofferMat = new THREE.MeshStandardMaterial({ color: 0xd8d3cb, roughness: 0.8, metalness: 0 })
+
+const CEIL_Y = 10
+const GRID = 3.5
+const BEAM_W = 0.2
+const BEAM_DROP = 0.4
+const SPAN_X = 12  // cover center area
+const SPAN_Z = 14
+
+// Grid beams (X-direction)
+for (let z = -SPAN_Z / 2; z <= SPAN_Z / 2; z += GRID) {
+  const beam = new THREE.Mesh(
+    new THREE.BoxGeometry(SPAN_X * 2, BEAM_DROP, BEAM_W),
+    beamMat,
+  )
+  beam.position.set(CX, CEIL_Y - BEAM_DROP / 2, CZ + z)
+  beam.castShadow = true
+  cofferedGroup.add(beam)
+}
+
+// Grid beams (Z-direction)
+for (let x = -SPAN_X; x <= SPAN_X; x += GRID) {
+  const beam = new THREE.Mesh(
+    new THREE.BoxGeometry(BEAM_W, BEAM_DROP, SPAN_Z),
+    beamMat,
+  )
+  beam.position.set(CX + x, CEIL_Y - BEAM_DROP / 2, CZ)
+  beam.castShadow = true
+  cofferedGroup.add(beam)
+}
+
+// Recessed coffer panels (darker squares between beams)
+for (let x = -SPAN_X + GRID / 2; x < SPAN_X; x += GRID) {
+  for (let z = -SPAN_Z / 2 + GRID / 2; z < SPAN_Z / 2; z += GRID) {
+    const panel = new THREE.Mesh(
+      new THREE.PlaneGeometry(GRID - BEAM_W - 0.1, GRID - BEAM_W - 0.1),
+      cofferMat,
+    )
+    panel.rotation.x = Math.PI / 2
+    panel.position.set(CX + x, CEIL_Y - BEAM_DROP + 0.01, CZ + z)
+    cofferedGroup.add(panel)
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Toggle controls
+// ═════════════════════════════════════════════════════════════════════════════
+const toggleMap = {
+  chkSpotCircles: spotCirclesGroup,
+  chkWainscoting: wainscotGroup,
+  chkPilasters:   pilasterGroup,
+chkCoffered:    cofferedGroup,
+}
+for (const [id, group] of Object.entries(toggleMap)) {
+  const el = document.getElementById(id)
+  el.addEventListener('change', () => { group.visible = el.checked })
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Animation
+// ═════════════════════════════════════════════════════════════════════════════
+function animate() {
+  requestAnimationFrame(animate)
+  orbit.update()
+  renderer.render(scene, camera)
+}
+animate()
+
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight
+  camera.updateProjectionMatrix()
+  renderer.setSize(innerWidth, innerHeight)
+})
+</script>
+</body>
+</html>

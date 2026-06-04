@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pedestal Concepts — AniMusePage</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; font-family: 'Segoe UI', system-ui, sans-serif; color: #fff; overflow: hidden; }
+  canvas { display: block; }
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: 16px 24px;
+    background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 100%);
+    pointer-events: none;
+  }
+  #hud h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.5px; opacity: 0.9; }
+  #hud p  { font-size: 12px; opacity: 0.5; margin-top: 4px; }
+  #labels {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    display: flex; justify-content: space-around;
+    padding: 12px 40px 20px;
+    background: linear-gradient(0deg, rgba(0,0,0,0.6) 0%, transparent 100%);
+    pointer-events: none;
+  }
+  .label {
+    text-align: center; min-width: 120px;
+  }
+  .label .num  { font-size: 11px; opacity: 0.4; letter-spacing: 2px; }
+  .label .name { font-size: 14px; font-weight: 600; opacity: 0.85; margin-top: 2px; }
+  .label .desc { font-size: 11px; opacity: 0.45; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <h1>Pedestal Concepts</h1>
+  <p>Orbit: drag &middot; Zoom: scroll &middot; Pan: right-drag</p>
+</div>
+
+<div id="labels">
+  <div class="label">
+    <div class="num">01</div>
+    <div class="name">Bezier Lathe</div>
+    <div class="desc">Classical curved profile</div>
+  </div>
+  <div class="label">
+    <div class="num">02</div>
+    <div class="name">Floating Platform</div>
+    <div class="desc">Sci-fi levitation</div>
+  </div>
+  <div class="label">
+    <div class="num">03</div>
+    <div class="name">Natural Rock</div>
+    <div class="desc">Organic stone</div>
+  </div>
+  <div class="label">
+    <div class="num">04</div>
+    <div class="name">Twisted Column</div>
+    <div class="desc">Solomonic spiral</div>
+  </div>
+  <div class="label">
+    <div class="num">05</div>
+    <div class="name">Mini Habitat</div>
+    <div class="desc">Natural terrain</div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.183.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.183.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+
+// ─── Renderer ────────────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: true })
+renderer.setSize(window.innerWidth, window.innerHeight)
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+renderer.shadowMap.enabled = true
+renderer.shadowMap.type = THREE.PCFSoftShadowMap
+renderer.toneMapping = THREE.ACESFilmicToneMapping
+renderer.toneMappingExposure = 1.1
+document.body.appendChild(renderer.domElement)
+
+// ─── Scene ───────────────────────────────────────────────────────────────────
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(0x1a1a2e)
+scene.fog = new THREE.FogExp2(0x1a1a2e, 0.018)
+
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 100)
+camera.position.set(0, 5, 18)
+
+const orbit = new OrbitControls(camera, renderer.domElement)
+orbit.target.set(0, 1.8, 0)
+orbit.enableDamping = true
+orbit.dampingFactor = 0.06
+orbit.update()
+
+// ─── Lights ──────────────────────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0x404060, 0.5))
+
+const hemi = new THREE.HemisphereLight(0x8090c0, 0x302820, 0.6)
+scene.add(hemi)
+
+const SPACING = 5.5
+const SLOTS = [-2, -1, 0, 1, 2].map(i => i * SPACING)
+
+for (const x of SLOTS) {
+  const spot = new THREE.SpotLight(0xfff4e0, 30, 18, Math.PI / 7, 0.5, 1.5)
+  spot.position.set(x + 1.5, 9, 3.5)
+  spot.target.position.set(x, 1.5, 0)
+  spot.castShadow = true
+  spot.shadow.mapSize.set(512, 512)
+  spot.shadow.bias = -0.002
+  scene.add(spot, spot.target)
+}
+
+// ─── Floor ───────────────────────────────────────────────────────────────────
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(50, 24),
+  new THREE.MeshStandardMaterial({ color: 0x222233, roughness: 0.7, metalness: 0.15 })
+)
+floor.rotation.x = -Math.PI / 2
+floor.receiveShadow = true
+scene.add(floor)
+
+// ─── Shared Materials ────────────────────────────────────────────────────────
+const stoneMat = new THREE.MeshStandardMaterial({ color: 0xd0ccc4, roughness: 0.45, metalness: 0.05 })
+const warmStone = new THREE.MeshStandardMaterial({ color: 0xc8bfb0, roughness: 0.55, metalness: 0.03 })
+
+// ─── Dummy Animal ────────────────────────────────────────────────────────────
+function makeDummyAnimal() {
+  const g = new THREE.Group()
+  const mat = new THREE.MeshStandardMaterial({ color: 0xd4cec8, roughness: 0.55 })
+  // body
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.55, 8, 16), mat)
+  body.rotation.z = Math.PI / 2
+  body.position.y = 0.62
+  body.castShadow = true
+  g.add(body)
+  // head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 12), mat)
+  head.position.set(0.42, 0.78, 0)
+  head.castShadow = true
+  g.add(head)
+  // legs
+  for (const [x, z] of [[0.18, 0.09], [0.18, -0.09], [-0.18, 0.09], [-0.18, -0.09]]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.38, 8), mat)
+    leg.position.set(x, 0.19, z)
+    leg.castShadow = true
+    g.add(leg)
+  }
+  return g
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 1 · BEZIER LATHE — Single curve between two discs
+// ═════════════════════════════════════════════════════════════════════════════
+{
+  const g = new THREE.Group()
+  g.position.x = SLOTS[0]
+
+  const BOTTOM_R = 1.25, TOP_R = 1.15, DISC_H = 0.07
+  const BODY_BOT = DISC_H, BODY_TOP = 1.53
+
+  // Single cubic-bezier from bottom disc edge to top disc edge
+  const curve = new THREE.CubicBezierCurve(
+    new THREE.Vector2(BOTTOM_R, BODY_BOT),   // starts at bottom disc rim
+    new THREE.Vector2(BOTTOM_R * 0.3, BODY_BOT + 0.15), // pull inward fast
+    new THREE.Vector2(TOP_R * 0.35, BODY_TOP - 0.2),    // stay slim near top
+    new THREE.Vector2(TOP_R, BODY_TOP),      // ends at top disc rim
+  )
+
+  const pts = [
+    new THREE.Vector2(0, 0),                 // center bottom (closed)
+    new THREE.Vector2(BOTTOM_R, 0),          // bottom disc outer edge
+    new THREE.Vector2(BOTTOM_R, DISC_H),     // bottom disc top edge
+    ...curve.getPoints(40),                  // single smooth curve
+    new THREE.Vector2(TOP_R, BODY_TOP + DISC_H), // top disc top edge
+    new THREE.Vector2(0, BODY_TOP + DISC_H), // center top (closed)
+  ]
+
+  const lathe = new THREE.Mesh(new THREE.LatheGeometry(pts, 64), stoneMat)
+  lathe.castShadow = true
+  lathe.receiveShadow = true
+  g.add(lathe)
+
+  const animal = makeDummyAnimal()
+  animal.position.y = 1.6
+  g.add(animal)
+  scene.add(g)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 2 · FLOATING PLATFORM — Sci-fi levitation with light pillar
+// ═════════════════════════════════════════════════════════════════════════════
+const floatingGroup = new THREE.Group()
+{
+  const g = floatingGroup
+  g.position.x = SLOTS[1]
+
+  // Main floating disc
+  const discMat = new THREE.MeshStandardMaterial({
+    color: 0xe8e4de, roughness: 0.25, metalness: 0.3,
+  })
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, 0.06, 64), discMat)
+  disc.position.y = 1.6
+  disc.castShadow = true
+  g.add(disc)
+
+  // Glowing rim
+  const rimMat = new THREE.MeshStandardMaterial({
+    color: 0x66aaff, emissive: 0x4488dd, emissiveIntensity: 2.5,
+    transparent: true, opacity: 0.9,
+  })
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(1.07, 0.015, 8, 64), rimMat)
+  rim.rotation.x = Math.PI / 2
+  rim.position.y = 1.6
+  g.add(rim)
+  g.userData.rim = rim
+
+  // Inner ring
+  const innerRim = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.008, 8, 48), rimMat.clone())
+  innerRim.rotation.x = Math.PI / 2
+  innerRim.position.y = 1.58
+  g.add(innerRim)
+
+  // Light cone (inverted, wider at bottom)
+  const coneMat = new THREE.MeshStandardMaterial({
+    color: 0x5599ee, emissive: 0x3366aa, emissiveIntensity: 0.3,
+    transparent: true, opacity: 0.07, side: THREE.DoubleSide, depthWrite: false,
+  })
+  const cone = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.9, 1.5, 32, 1, true), coneMat)
+  cone.position.y = 0.78
+  g.add(cone)
+
+  // Ground glow disc
+  const glowDisc = new THREE.Mesh(
+    new THREE.CircleGeometry(1.0, 48),
+    new THREE.MeshStandardMaterial({
+      color: 0x4488cc, emissive: 0x3366aa, emissiveIntensity: 1.2,
+      transparent: true, opacity: 0.15, depthWrite: false,
+    })
+  )
+  glowDisc.rotation.x = -Math.PI / 2
+  glowDisc.position.y = 0.01
+  g.add(glowDisc)
+
+  // Particles rising upward
+  const N = 80
+  const pGeo = new THREE.BufferGeometry()
+  const pos = new Float32Array(N * 3)
+  const sizes = new Float32Array(N)
+  for (let i = 0; i < N; i++) {
+    const a = Math.random() * Math.PI * 2
+    const r = Math.random() * 0.7
+    pos[i * 3]     = Math.cos(a) * r
+    pos[i * 3 + 1] = Math.random() * 1.55
+    pos[i * 3 + 2] = Math.sin(a) * r
+    sizes[i] = 0.02 + Math.random() * 0.03
+  }
+  pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  const particles = new THREE.Points(pGeo, new THREE.PointsMaterial({
+    color: 0x88bbff, size: 0.04, transparent: true, opacity: 0.5,
+    sizeAttenuation: true, depthWrite: false,
+  }))
+  g.add(particles)
+  g.userData.pBuf = pos
+  g.userData.particles = particles
+
+  const animal = makeDummyAnimal()
+  animal.position.y = 1.63
+  g.add(animal)
+  scene.add(g)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 3 · NATURAL ROCK — Procedural displaced geometry
+// ═════════════════════════════════════════════════════════════════════════════
+{
+  const g = new THREE.Group()
+  g.position.x = SLOTS[2]
+
+  // Main rock body — displaced icosahedron, sculpted into pedestal shape
+  const geo = new THREE.IcosahedronGeometry(1.0, 4)
+  const vPos = geo.attributes.position
+  for (let i = 0; i < vPos.count; i++) {
+    let x = vPos.getX(i), y = vPos.getY(i), z = vPos.getZ(i)
+    const len = Math.sqrt(x * x + y * y + z * z) || 1
+
+    // Noise layers for organic feel
+    const n1 = Math.sin(x * 4.1 + z * 2.7) * 0.12
+    const n2 = Math.cos(y * 5.3 + x * 3.2) * 0.08
+    const n3 = Math.sin(y * 8.0 + z * 6.1) * 0.04
+
+    // Shape: wider at base, tapering slightly up, flat top
+    const normY = (y / len + 1) / 2  // 0=bottom, 1=top
+    const widthMult = 1.15 - normY * 0.2  // wider at bottom
+
+    let r = (0.85 + n1 + n2 + n3) * widthMult
+    // Flatten top
+    let ny = y / len * 0.75
+    if (normY > 0.75) ny = Math.min(ny, 0.55)
+
+    vPos.setXYZ(i, x / len * r * 1.15, ny + 0.05, z / len * r * 1.15)
+  }
+  geo.computeVertexNormals()
+
+  // Vertex colors for natural stone look
+  const colors = new Float32Array(vPos.count * 3)
+  for (let i = 0; i < vPos.count; i++) {
+    const y = vPos.getY(i)
+    const t = (y + 0.6) / 1.2
+    // Dark base → lighter top
+    const r = 0.38 + t * 0.18 + (Math.random() - 0.5) * 0.06
+    const gr = 0.34 + t * 0.16 + (Math.random() - 0.5) * 0.05
+    const b = 0.28 + t * 0.12 + (Math.random() - 0.5) * 0.04
+    colors[i * 3] = r; colors[i * 3 + 1] = gr; colors[i * 3 + 2] = b
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+
+  const rockMat = new THREE.MeshStandardMaterial({
+    vertexColors: true, roughness: 0.92, metalness: 0.0,
+  })
+  const rock = new THREE.Mesh(geo, rockMat)
+  rock.scale.set(1.15, 1.35, 1.15)
+  rock.position.y = 0.95
+  rock.castShadow = true
+  rock.receiveShadow = true
+  g.add(rock)
+
+  // Mossy patches on top
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + 0.3
+    const r = 0.3 + Math.random() * 0.3
+    const moss = new THREE.Mesh(
+      new THREE.SphereGeometry(0.12 + Math.random() * 0.08, 8, 6),
+      new THREE.MeshStandardMaterial({ color: 0x4a6b3a, roughness: 0.9 })
+    )
+    moss.position.set(Math.cos(a) * r, 1.58, Math.sin(a) * r)
+    moss.scale.y = 0.3
+    g.add(moss)
+  }
+
+  const animal = makeDummyAnimal()
+  animal.position.y = 1.6
+  g.add(animal)
+  scene.add(g)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 4 · TWISTED COLUMN — Double-helix Solomonic pillar
+// ═════════════════════════════════════════════════════════════════════════════
+{
+  const g = new THREE.Group()
+  g.position.x = SLOTS[3]
+
+  const TURNS = 2.5, COL_R = 0.32, HEIGHT = 1.35, STEPS = 120
+
+  // Two intertwined helical tubes
+  for (let h = 0; h < 2; h++) {
+    const pts = []
+    for (let i = 0; i <= STEPS; i++) {
+      const t = i / STEPS
+      const a = t * Math.PI * 2 * TURNS + h * Math.PI
+      pts.push(new THREE.Vector3(
+        Math.cos(a) * COL_R,
+        t * HEIGHT + 0.08,
+        Math.sin(a) * COL_R,
+      ))
+    }
+    const curve = new THREE.CatmullRomCurve3(pts)
+    const tube = new THREE.Mesh(
+      new THREE.TubeGeometry(curve, STEPS, 0.1, 12, false),
+      warmStone
+    )
+    tube.castShadow = true
+    tube.receiveShadow = true
+    g.add(tube)
+  }
+
+  // Base — tiered
+  const baseMat = stoneMat.clone()
+  const base1 = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.05, 0.08, 48), baseMat)
+  base1.position.y = 0.04; base1.castShadow = true; base1.receiveShadow = true
+  g.add(base1)
+  const base2 = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.65, 0.06, 48), baseMat)
+  base2.position.y = 0.11; base2.castShadow = true
+  g.add(base2)
+
+  // Capital (top) — tiered
+  const cap1 = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.6, 0.06, 48), baseMat)
+  cap1.position.y = 1.46; cap1.castShadow = true
+  g.add(cap1)
+  const cap2 = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 0.95, 0.08, 48), baseMat)
+  cap2.position.y = 1.53; cap2.castShadow = true; cap2.receiveShadow = true
+  g.add(cap2)
+  // Flat display surface
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.0, 0.05, 48), baseMat)
+  top.position.y = 1.585; top.castShadow = true
+  g.add(top)
+
+  const animal = makeDummyAnimal()
+  animal.position.y = 1.61
+  g.add(animal)
+  scene.add(g)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 5 · MINI HABITAT — Natural terrain island
+// ═════════════════════════════════════════════════════════════════════════════
+{
+  const g = new THREE.Group()
+  g.position.x = SLOTS[4]
+
+  // Rock cliff body — cylinder with displaced sides
+  const cliffGeo = new THREE.CylinderGeometry(1.15, 0.95, 1.55, 32, 12)
+  const cPos = cliffGeo.attributes.position
+  for (let i = 0; i < cPos.count; i++) {
+    let x = cPos.getX(i), y = cPos.getY(i), z = cPos.getZ(i)
+    const r = Math.sqrt(x * x + z * z)
+    if (r > 0.01) {
+      const noise = Math.sin(x * 6 + z * 4 + y * 3) * 0.1
+                  + Math.cos(y * 7 + x * 2) * 0.06
+                  + Math.sin(z * 9 + y * 5) * 0.03
+      const scale = 1 + noise
+      cPos.setX(i, x * scale)
+      cPos.setZ(i, z * scale)
+    }
+  }
+  cliffGeo.computeVertexNormals()
+
+  // Vertex colors: dark earth at bottom → reddish-brown mid → soil at top
+  const cColors = new Float32Array(cPos.count * 3)
+  for (let i = 0; i < cPos.count; i++) {
+    const y = cPos.getY(i)
+    const t = (y + 0.78) / 1.56
+    const r = 0.25 + t * 0.2 + (Math.random() - 0.5) * 0.04
+    const gr = 0.2 + t * 0.18 + (Math.random() - 0.5) * 0.03
+    const b = 0.14 + t * 0.1 + (Math.random() - 0.5) * 0.03
+    cColors[i * 3] = r; cColors[i * 3 + 1] = gr; cColors[i * 3 + 2] = b
+  }
+  cliffGeo.setAttribute('color', new THREE.BufferAttribute(cColors, 3))
+
+  const cliff = new THREE.Mesh(cliffGeo, new THREE.MeshStandardMaterial({
+    vertexColors: true, roughness: 0.95, metalness: 0,
+  }))
+  cliff.position.y = 0.78
+  cliff.castShadow = true
+  cliff.receiveShadow = true
+  g.add(cliff)
+
+  // Grass top
+  const grassGeo = new THREE.CylinderGeometry(1.2, 1.15, 0.05, 48)
+  const grass = new THREE.Mesh(grassGeo, new THREE.MeshStandardMaterial({
+    color: 0x5a8a3a, roughness: 0.75,
+  }))
+  grass.position.y = 1.58
+  grass.receiveShadow = true
+  g.add(grass)
+
+  // Small bushes / grass tufts
+  const bushMat = new THREE.MeshStandardMaterial({ color: 0x3d7a28, roughness: 0.8 })
+  const darkBush = new THREE.MeshStandardMaterial({ color: 0x2d5a1a, roughness: 0.85 })
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + Math.random() * 0.4
+    const r = 0.55 + Math.random() * 0.45
+    const bush = new THREE.Mesh(
+      new THREE.SphereGeometry(0.08 + Math.random() * 0.07, 7, 5),
+      Math.random() > 0.5 ? bushMat : darkBush,
+    )
+    bush.position.set(Math.cos(a) * r, 1.62, Math.sin(a) * r)
+    bush.scale.set(1, 0.6 + Math.random() * 0.4, 1)
+    bush.castShadow = true
+    g.add(bush)
+  }
+
+  // Small pebbles
+  const pebbleMat = new THREE.MeshStandardMaterial({ color: 0x888078, roughness: 0.9 })
+  for (let i = 0; i < 7; i++) {
+    const a = Math.random() * Math.PI * 2
+    const r = Math.random() * 0.9
+    const peb = new THREE.Mesh(new THREE.SphereGeometry(0.03 + Math.random() * 0.04, 5, 4), pebbleMat)
+    peb.position.set(Math.cos(a) * r, 1.6, Math.sin(a) * r)
+    peb.scale.set(1 + Math.random() * 0.5, 0.4, 1 + Math.random() * 0.3)
+    g.add(peb)
+  }
+
+  // Tiny water puddle
+  const puddle = new THREE.Mesh(
+    new THREE.CircleGeometry(0.2, 24),
+    new THREE.MeshStandardMaterial({
+      color: 0x4488aa, roughness: 0.1, metalness: 0.4,
+      transparent: true, opacity: 0.7,
+    })
+  )
+  puddle.rotation.x = -Math.PI / 2
+  puddle.position.set(-0.3, 1.61, 0.3)
+  g.add(puddle)
+
+  const animal = makeDummyAnimal()
+  animal.position.y = 1.61
+  g.add(animal)
+  scene.add(g)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Animation loop
+// ═════════════════════════════════════════════════════════════════════════════
+const clock = new THREE.Clock()
+
+function animate() {
+  requestAnimationFrame(animate)
+  const t = clock.getElapsedTime()
+  const dt = clock.getDelta()
+
+  // Floating platform — particle rise + rim pulse
+  const fg = floatingGroup
+  const buf = fg.userData.pBuf
+  if (buf) {
+    for (let i = 0; i < buf.length / 3; i++) {
+      buf[i * 3 + 1] += 0.004 + Math.sin(t * 2 + i) * 0.001
+      if (buf[i * 3 + 1] > 1.55) {
+        buf[i * 3 + 1] = 0
+        const a = Math.random() * Math.PI * 2
+        const r = Math.random() * 0.7
+        buf[i * 3] = Math.cos(a) * r
+        buf[i * 3 + 2] = Math.sin(a) * r
+      }
+    }
+    fg.userData.particles.geometry.attributes.position.needsUpdate = true
+  }
+  if (fg.userData.rim) {
+    fg.userData.rim.material.emissiveIntensity = 2.0 + Math.sin(t * 1.5) * 0.8
+  }
+
+  orbit.update()
+  renderer.render(scene, camera)
+}
+animate()
+
+// ─── Resize ──────────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight
+  camera.updateProjectionMatrix()
+  renderer.setSize(innerWidth, innerHeight)
+})
+</script>
+</body>
+</html>

@@ -18,8 +18,9 @@ export class PageManager {
     this._cc     = carouselCamera
     this._manager = manager
 
-    this.state   = 'landing'  // 'landing' | 'flying' | 'demo'
+    this.state   = 'landing'  // 'landing' | 'video' | 'flying' | 'demo'
     this._onLeaveDemo = null
+    this._lastNav = 0  // timestamp of last page transition (debounce inertia scrolling)
 
     this._t      = 1
     this._from   = { camPos: new THREE.Vector3(), target: new THREE.Vector3() }
@@ -28,6 +29,8 @@ export class PageManager {
     this._queue  = []  // chained flight phases
 
     this._landingEl    = document.getElementById('landing-page')
+    this._videoEl      = document.getElementById('video-page')
+    this._ytFrame      = document.getElementById('yt-player')
     this._controlsEl   = document.getElementById('controls')
     this._exhibitInfo  = document.getElementById('exhibit-info')
     this._btnBack      = document.getElementById('btn-back-overview')
@@ -66,14 +69,34 @@ export class PageManager {
 
   _showLanding() {
     this._setEl(this._landingEl, true)
+    this._setEl(this._videoEl, false)
     this._setEl(this._controlsEl, false)
     this._setEl(this._exhibitInfo, false)
     this._setEl(this._btnBack, false)
     this._setEl(this._btnAbstract, false)
   }
 
+  _showVideo() {
+    this.state = 'video'
+    this._setEl(this._landingEl, false)
+    this._setEl(this._videoEl, true)
+  }
+
+  _backToLanding() {
+    this.state = 'landing'
+    this._pauseVideo()
+    this._showLanding()
+  }
+
+  _pauseVideo() {
+    // YouTube iframe API command (requires enablejsapi=1 in the embed URL)
+    this._ytFrame?.contentWindow?.postMessage(
+      JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*')
+  }
+
   _showDemo() {
     this._setEl(this._landingEl, false)
+    this._setEl(this._videoEl, false)
     this._setEl(this._abstractPage, false)
     this._setEl(this._controlsEl, true)
     this._setEl(this._exhibitInfo, true)
@@ -109,10 +132,25 @@ export class PageManager {
     this._onDone = onDone
   }
 
+  // One transition per scroll gesture — inertia scrolling keeps firing wheel
+  // events, so block further transitions for a short window.
+  _navLocked() {
+    const now = performance.now()
+    if (now - this._lastNav < 900) return true
+    this._lastNav = now
+    return false
+  }
+
   _onWheel(e) {
     if (this.state === 'landing' && e.deltaY > 30) {
       e.preventDefault()
-      this.flyToDemo()
+      if (this._navLocked()) return
+      this._showVideo()
+    } else if (this.state === 'video' && Math.abs(e.deltaY) > 30) {
+      e.preventDefault()
+      if (this._navLocked()) return
+      if (e.deltaY > 0) this.flyToDemo()
+      else this._backToLanding()
     }
   }
 
@@ -121,23 +159,29 @@ export class PageManager {
   }
 
   _onTouchMove(e) {
-    if (this.state !== 'landing') return
+    if (this.state !== 'landing' && this.state !== 'video') return
     const dy = this._touchStartY - e.touches[0].clientY
-    if (dy > 50) {
-      e.preventDefault()
-      this.flyToDemo()
+    if (Math.abs(dy) < 50) return
+    e.preventDefault()
+    if (this._navLocked()) return
+    this._touchStartY = e.touches[0].clientY
+    if (this.state === 'landing') {
+      if (dy > 0) this._showVideo()
+    } else {
+      if (dy > 0) this.flyToDemo()
+      else this._backToLanding()
     }
   }
 
   flyToDemo() {
-    if (this.state !== 'landing') return
+    if (this.state !== 'video') return
     this.state = 'flying'
+    this._pauseVideo()
 
     const slot0 = this._cc.viewForSlot(0)
     const activeIdx = this._manager.activeIndex
 
-    this._landingEl.style.opacity = '0'
-    this._landingEl.style.pointerEvents = 'none'
+    this._setEl(this._videoEl, false)
 
     // Phase 1: descend from overhead to slot 0
     this._startFly(
